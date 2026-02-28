@@ -25,15 +25,49 @@ function makeBetKey(row){
   return `k:${m}|${mk}|${o}|${d}`;
 }
 
-tabBets.onclick=()=>switchTab(true);
-tabTracker.onclick=()=>switchTab(false);
+// Top navigation tabs
+const tabHistoryEl = document.getElementById("tabHistory");
+const historySectionEl = document.getElementById("historySection");
+const historyDaySelectEl = document.getElementById("historyDaySelect");
+const historyListEl = document.getElementById("historyList");
+const historySummaryEl = document.getElementById("historySummary");
+const historyRefreshEl = document.getElementById("historyRefresh");
 
-function switchTab(show){
+let currentTopTab = "bets"; // 'bets' | 'tracker' | 'history'
+let trackerRowsCache = [];
+
+tabBets.onclick=()=>switchTab("bets");
+tabTracker.onclick=()=>switchTab("tracker");
+if(tabHistoryEl) tabHistoryEl.onclick=()=>switchTab("history");
+
+function switchTab(tab){
+  currentTopTab = tab;
   initChartTabs();
-betsSection.style.display=show?"block":"none";
-trackerSection.style.display=show?"none":"block";
-tabBets.classList.toggle("active",show);
-tabTracker.classList.toggle("active",!show);
+
+  betsSection.style.display=(tab==="bets")?"block":"none";
+  trackerSection.style.display=(tab==="tracker")?"block":"none";
+  if(historySectionEl) historySectionEl.style.display=(tab==="history")?"block":"none";
+
+  tabBets.classList.toggle("active",tab==="bets");
+  tabTracker.classList.toggle("active",tab==="tracker");
+  if(tabHistoryEl) tabHistoryEl.classList.toggle("active",tab==="history");
+
+  if(tab!=="bets"){
+    loadTracker().then(()=>{
+      if(tab==="history") renderHistory();
+    });
+  }
+}
+
+if(historyDaySelectEl){
+  historyDaySelectEl.addEventListener("change", ()=>renderHistory());
+}
+
+if(historyRefreshEl){
+  historyRefreshEl.addEventListener("click", async ()=>{
+    await loadTracker();
+    renderHistory();
+  });
 }
 
 async function loadBets(){
@@ -56,7 +90,7 @@ async function loadBets(){
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
 if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
-data.forEach(row=>{
+ (data || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -283,6 +317,124 @@ function fmtDayLabel(d){
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
+function escapeHtml(str){
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ---------------------------
+// Daily History (derived from bet_tracker)
+// ---------------------------
+
+function dayKeyFromRow(r){
+  if(r && r.match_date){
+    const s = String(r.match_date).slice(0,10);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  }
+  const raw = r?.bet_date || r?.created_at;
+  if(!raw) return "";
+  const d = new Date(raw);
+  if(Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0,10);
+}
+
+function formatDayLabelLong(dayKey){
+  const d = new Date(dayKey + "T00:00:00Z");
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function renderHistory(){
+  if(!historySectionEl || !historyDaySelectEl || !historyListEl || !historySummaryEl) return;
+
+  const rows = trackerRowsCache || [];
+  const daySet = new Set(rows.map(dayKeyFromRow).filter(Boolean));
+  const days = Array.from(daySet).sort((a,b)=>b.localeCompare(a));
+
+  const prev = historyDaySelectEl.value;
+  historyDaySelectEl.innerHTML = "";
+  days.forEach(dk=>{
+    const opt=document.createElement("option");
+    opt.value=dk;
+    opt.textContent=formatDayLabelLong(dk);
+    historyDaySelectEl.appendChild(opt);
+  });
+
+  const selected = (prev && days.includes(prev)) ? prev : (days[0] || "");
+  if(selected) historyDaySelectEl.value = selected;
+
+  const dayRows = selected ? rows.filter(r=>dayKeyFromRow(r)===selected) : [];
+
+  let won=0,lost=0,pending=0;
+  let staked=0, profit=0;
+  dayRows.forEach(r=>{
+    const res = String(r.result || "pending").toLowerCase();
+    const stake = Number(r.stake)||0;
+    const p = Number(r.profit)||0;
+    staked += stake;
+    profit += p;
+    if(res==="won") won++;
+    else if(res==="lost") lost++;
+    else pending++;
+  });
+  const roi = staked>0 ? (profit/staked)*100 : 0;
+
+  historySummaryEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
+      <div>Won: <strong>${won}</strong> &nbsp; Lost: <strong>${lost}</strong> &nbsp; Pending: <strong>${pending}</strong></div>
+      <div>Staked: <strong>£${staked.toFixed(2)}</strong> &nbsp; Profit: <strong>£${profit.toFixed(2)}</strong> &nbsp; ROI: <strong>${roi.toFixed(1)}%</strong></div>
+    </div>
+  `;
+
+  historyListEl.innerHTML = "";
+  if(dayRows.length===0){
+    historyListEl.innerHTML = `<div class="empty">No bets for this day.</div>`;
+    return;
+  }
+
+  dayRows
+    .slice()
+    .sort((a,b)=>{
+      const da = new Date(a.bet_date || a.created_at || 0).getTime();
+      const db = new Date(b.bet_date || b.created_at || 0).getTime();
+      return db - da;
+    })
+    .forEach(r=>{
+      const res = String(r.result || "pending").toLowerCase();
+      const cls = res==="won" ? "win" : (res==="lost" ? "loss" : "pending");
+      const icon = res==="won" ? "✅" : (res==="lost" ? "❌" : "⏳");
+
+      const card=document.createElement("div");
+      card.className = `bet-card history-card ${cls}`;
+
+      const stake = Number(r.stake)||0;
+      const odds = Number(r.odds)||0;
+      const p = Number(r.profit)||0;
+      const profitTxt = (p>=0?"£":"-£") + Math.abs(p).toFixed(2);
+
+      card.innerHTML = `
+        <div class="bet-top">
+          <div>
+            <div class="bet-match">${escapeHtml(r.match || "")}</div>
+            <div class="bet-market">${escapeHtml(r.market || "")}</div>
+          </div>
+          <div class="result-badge ${cls}">${icon} ${res.toUpperCase()}</div>
+        </div>
+        <div class="bet-bottom">
+          <div class="pill">Odds <strong>${odds || "-"}</strong></div>
+          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
+          <div class="pill">Profit <strong>${profitTxt}</strong></div>
+        </div>
+      `;
+
+      historyListEl.appendChild(card);
+    });
+}
+
 function isEndOfDay(index, labels){
   if(!labels || !labels.length) return false;
   if(index === labels.length - 1) return true;
@@ -341,7 +493,9 @@ borderWidth:2,
 
 async function loadTracker(){
 const {data}=await client.from("bet_tracker").select("*").order("created_at",{ascending:true});
-trackerAllRows = data || [];
+const rows = data || [];
+trackerRowsCache = rows;
+trackerAllRows = rows;
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);
@@ -349,7 +503,7 @@ let bankroll=start,profit=0,wins=0,losses=0,totalStake=0,totalOdds=0,history=[];
 
 	let html="<table><tr><th class='date-col'>Date</th><th>Match</th><th>Stake</th><th>Result</th><th class='profit-col'>Profit</th></tr>";
 
-data.forEach(row=>{
+rows.forEach(row=>{
 let p=0;
 if(row.result==="won"){p=row.stake*(row.odds-1);wins++;}
 if(row.result==="lost"){p=-row.stake;losses++;}
@@ -388,7 +542,7 @@ if(wonLostElem){
   wonLostElem.innerText = `${wins}-${losses}`;
 }
 
-const totalBets = data.length;
+const totalBets = rows.length;
 const totalElem = document.getElementById("totalBets");
 if(totalElem) totalElem.innerText = totalBets;
 const totalStakedCard = document.getElementById("totalStakedCard");
@@ -397,7 +551,7 @@ if(totalStakedCard){
 }
 
 
-avgOddsElem.innerText=data.length?(totalOdds/data.length).toFixed(2):0;
+avgOddsElem.innerText=rows.length?(totalOdds/rows.length).toFixed(2):0;
 
 profitCard.classList.remove("glow-green","glow-red");
 if(profit>0) profitCard.classList.add("glow-green");
@@ -405,18 +559,18 @@ if(profit<0) profitCard.classList.add("glow-red");
 
 
 // Daily labels based on the *game* date when available
-const dailyLabels = data.map(r => fmtDayLabel(r.match_date_date || r.bet_date || r.created_at));
+const dailyLabels = rows.map(r => fmtDayLabel(r.match_date_date || r.bet_date || r.created_at));
 renderDailyChart(history, dailyLabels);
 
 // ---- Monthly & Market analytics (tabs + mini summary) ----
 const countElem = document.getElementById("betCount");
-if(countElem) countElem.textContent = String(data.length);
+if(countElem) countElem.textContent = String(rows.length);
 
 // Monthly profit aggregation (ROI version)
 const monthMap = {};
 const monthStakeMap = {};
 
-data.forEach(r=>{
+rows.forEach(r=>{
   const d = new Date(r.created_at);
   const key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
   monthMap[key] = (monthMap[key]||0) + rowProfit(r);
