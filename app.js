@@ -78,7 +78,8 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds")
+      .select("match,market,odds,archived")
+      .eq("archived", false)
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
@@ -383,12 +384,15 @@ function renderHistory(){
   const roi = staked>0 ? (profit/staked)*100 : 0;
 
   historySummaryEl.innerHTML = `
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-      <div><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
-      <div>Won: <strong>${won}</strong> &nbsp; Lost: <strong>${lost}</strong> &nbsp; Pending: <strong>${pending}</strong></div>
-      <div>Staked: <strong>£${staked.toFixed(2)}</strong> &nbsp; Profit: <strong>£${profit.toFixed(2)}</strong> &nbsp; ROI: <strong>${roi.toFixed(1)}%</strong></div>
-    </div>
-  `;
+      <div class="history-day-box">
+        <div class="history-day-title">${escapeHtml(fmtDate(day))}</div>
+        <div class="history-day-score">
+          <div class="score-main">${won}/${(won+lost)}</div>
+          <div class="score-sub">won/settled</div>
+        </div>
+        <div class="history-day-meta">Won: <strong>${won}</strong> • Lost: <strong>${lost}</strong> • Pending: <strong>${pending}</strong></div>
+      </div>
+    `;
 
   historyListEl.innerHTML = "";
   if(dayRows.length===0){
@@ -426,8 +430,6 @@ function renderHistory(){
         </div>
         <div class="bet-bottom">
           <div class="pill">Odds <strong>${odds || "-"}</strong></div>
-          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
-          <div class="pill">Profit <strong>${profitTxt}</strong></div>
         </div>
       `;
 
@@ -501,35 +503,42 @@ wireTrackerFilters();
 let start=parseFloat(document.getElementById("startingBankroll").value);
 let bankroll=start,profit=0,wins=0,losses=0,totalStake=0,totalOdds=0,history=[];
 
-	let html="<table><tr><th class='date-col'>Date</th><th>Match</th><th>Stake</th><th>Result</th><th class='profit-col'>Profit</th></tr>";
-
+// Stats should include ALL bets (even archived), so profit progress doesn't change when you hide rows.
 rows.forEach(row=>{
-let p=0;
-if(row.result==="won"){p=row.stake*(row.odds-1);wins++;}
-if(row.result==="lost"){p=-row.stake;losses++;}
-profit+=p;totalStake+=row.stake;totalOdds+=row.odds;
-bankroll=start+profit;history.push(bankroll);
-
-const gameDate = row.match_date_date || row.bet_date || row.created_at;
-html+=`<tr>
-<td class="date-col">${fmtDayLabel(gameDate)}</td><td>${row.match}</td>
-<td><input type="number" value="${row.stake}" onchange="updateStake('${row.id}',this.value)"></td>
-<td>
-<select 
-class="result-select result-${row.result}" 
-onchange="updateResult('${row.id}',this.value)">
-<option value="pending" ${row.result==="pending"?"selected":""}>pending</option>
-<option value="won" ${row.result==="won"?"selected":""}>won</option>
-<option value="lost" ${row.result==="lost"?"selected":""}>lost</option>
-<option value="delete">🗑 delete</option>
-</select>
-</td>
-<td class="profit-col">
-<span class="${p>0?'profit-win':p<0?'profit-loss':''}">£${p.toFixed(2)}</span>
-</td>
-</tr>`;
+  let p=0;
+  if(row.result==="won") p=(row.stake||0)*((row.odds||1)-1);
+  if(row.result==="lost") p=-(row.stake||0);
+  profit+=p; bankroll+=p;
+  if(row.result==="won") wins++;
+  if(row.result==="lost") losses++;
+  totalStake += (row.stake||0);
+  totalOdds  += (row.odds||0);
+  history.push({date:row.bet_date||row.created_at, match:row.match, market:row.market, odds:row.odds, stake:row.stake, result:row.result, profit:p});
 });
 
+const displayRows = rows.filter(r => !r.archived);
+
+let html="<table><tr><th class='date-col'>Date</th><th>Match</th><th>Stake</th><th>Result</th><th class='profit-col'>Profit</th></tr>";
+displayRows.forEach(row=>{
+  let p=0;
+  if(row.result==="won") p=(row.stake||0)*((row.odds||1)-1);
+  if(row.result==="lost") p=-(row.stake||0);
+
+  html+=`<tr>
+    <td class='date-col'>${fmtDate(row.bet_date||row.created_at)}</td>
+    <td>${escapeHtml(row.match)}<div class='sub'>${escapeHtml(row.market)} @ ${row.odds||""}</div></td>
+    <td>${row.stake||""}</td>
+    <td>
+      <select class='resSel' data-id='${row.id}'>
+        <option value='pending' ${row.result==="pending"?"selected":""}>pending</option>
+        <option value='won' ${row.result==="won"?"selected":""}>won</option>
+        <option value='lost' ${row.result==="lost"?"selected":""}>lost</option>
+        <option value='__delete__'>remove</option>
+      </select>
+    </td>
+    <td class='profit-col'>${p.toFixed(2)}</td>
+  </tr>`;
+});
 html+="</table>";
 trackerTable.innerHTML=html;
 
@@ -665,7 +674,7 @@ loadTracker();
 async function updateResult(id,val){
 if(val==="delete"){
 if(!confirm("Delete this bet?")){loadTracker();return;}
-await client.from("bet_tracker").delete().eq("id",id);
+await client.from("bet_tracker").update({ archived: true, archived_at: new Date().toISOString() }).eq("id",id);
 // Refresh the Value Bets feed so the button switches back from "Added" to "Add".
 loadBets();
 }else{
