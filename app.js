@@ -330,8 +330,6 @@ function escapeHtml(str){
 // Daily History (derived from bet_tracker)
 // ---------------------------
 
-const historyCollapsedDays = {};
-
 function dayKeyFromRow(r){
   if(r && r.match_date){
     const s = String(r.match_date).slice(0,10);
@@ -384,39 +382,13 @@ function renderHistory(){
   });
   const roi = staked>0 ? (profit/staked)*100 : 0;
 
-  const isClosedDay = dayRows.length>0 && pending===0;
-  if(selected && (historyCollapsedDays[selected] === undefined)){
-    // Auto-close (collapse) days that are fully settled
-    historyCollapsedDays[selected] = isClosedDay;
-  }
-
-
   historySummaryEl.innerHTML = `
-    <div class="history-head">
-      <div class="history-head-left"><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
-      <div class="history-head-right">
-        <span class="history-ratio">${won}/${(won+lost) || 0}</span>
-        ${dayRows.length ? `<button class="history-toggle" id="historyToggleBtn">${(historyCollapsedDays[selected] ?? false) ? "Show" : "Hide"}</button>` : ""}
-      </div>
-    </div>
-    <div class="history-sub">
-      <span class="pill-sm win">✅ Won <strong>${won}</strong></span>
-      <span class="pill-sm loss">❌ Lost <strong>${lost}</strong></span>
-      <span class="pill-sm pending">⏳ Pending <strong>${pending}</strong></span>
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
+      <div>Won: <strong>${won}</strong> &nbsp; Lost: <strong>${lost}</strong> &nbsp; Pending: <strong>${pending}</strong></div>
+      <div>Staked: <strong>£${staked.toFixed(2)}</strong> &nbsp; Profit: <strong>£${profit.toFixed(2)}</strong> &nbsp; ROI: <strong>${roi.toFixed(1)}%</strong></div>
     </div>
   `;
-
-  // Apply collapse state (auto-closed when all settled)
-  historyListEl.classList.toggle("collapsed", !!historyCollapsedDays[selected]);
-
-  const tbtn = document.getElementById("historyToggleBtn");
-  if(tbtn){
-    tbtn.onclick = () => {
-      historyCollapsedDays[selected] = !historyCollapsedDays[selected];
-      historyListEl.classList.toggle("collapsed", !!historyCollapsedDays[selected]);
-      tbtn.textContent = historyCollapsedDays[selected] ? "Show" : "Hide";
-    };
-  }
 
   historyListEl.innerHTML = "";
   if(dayRows.length===0){
@@ -454,6 +426,8 @@ function renderHistory(){
         </div>
         <div class="bet-bottom">
           <div class="pill">Odds <strong>${odds || "-"}</strong></div>
+          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
+          <div class="pill">Profit <strong>${profitTxt}</strong></div>
         </div>
       `;
 
