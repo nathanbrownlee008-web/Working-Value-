@@ -1,20 +1,89 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Top Daily Tips</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Top Daily Tips</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
 
-<h1>Top Daily Tips</h1>
+<header class="main-header">
+<h1 class="logo-3d">Top Daily Tips</h1>
+<div class="tabs">
+<button id="tabBets" class="active">Value Bets</button>
+<button id="tabTracker">Tracker</button>
+</div>
+</header>
 
-<h2>Value Bets</h2>
-<div id="value-bets"></div>
+<section id="betsSection">
+<div id="betsGrid" class="bets-grid"></div>
+</section>
 
-<h2>Tracker</h2>
-<div id="tracker"></div>
+<section id="trackerSection" style="display:none;">
+
+<div class="bankroll-section">
+  <div class="bankroll-row">
+    <label>Starting Bankroll</label>
+    <input type="number" id="startingBankroll" value="290" />
+    <button onclick="exportCSV()">Export CSV</button>
+  </div>
+</div>
+
+<div class="stats-grid">
+<div class="stat-card">Bankroll<br><strong>£<span id="bankroll">0</span></strong></div>
+<div class="stat-card" id="profitCard">Profit<br><strong>£<span id="profit">0</span></strong></div>
+<div class="stat-card">ROI<br><strong><span id="roi">0</span>%</strong></div>
+<div class="stat-card">Win Rate<br><strong><span id="winrate">0</span>%</strong></div>
+<div class="stat-card">Won - Lost<br><strong><span id="wonLost">0-0</span></strong></div>
+<div class="stat-card">Staked<br><strong>£<span id="totalStakedCard">0</span></strong></div>
+<div class="stat-card">Avg Odds<br><strong><span id="avgOdds">0</span></strong></div>
+<div class="stat-card">Total Bets<br><strong><span id="totalBets">0</span></strong></div>
+</div>
+
+<div class="chart-tabs">
+  <button class="tab-btn active" data-tab="daily">Daily</button>
+  <button class="tab-btn" data-tab="monthly">Monthly</button>
+  <button class="tab-btn" data-tab="market">Markets</button>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-pane active" id="pane-daily">
+    <canvas id="chart"></canvas>
+  </div>
+  <div class="chart-pane" id="pane-monthly">
+  <canvas id="monthlyChart"></canvas>
+
+  <div class="monthly-breakdown">
+    <div class="monthly-toggle" onclick="toggleMonthly()">
+      📊 Monthly Breakdown
+      <span id="monthlyArrow">▼</span>
+    </div>
+
+    <div id="monthlyWrapper" class="collapsed">
+      <div id="monthlyTable"></div>
+    </div>
+  </div>
+
+</div>
+  <div class="chart-pane" id="pane-market">
+    <canvas id="marketChart"></canvas>
+  </div>
+</div>
+
+<div class="tracker-history">
+  <div class="tracker-toggle" onclick="toggleTracker()">
+    📈 Bet Results (<span id="betCount">0</span>)
+    <span id="trackerArrow">▼</span>
+  </div>
+  <div id="trackerWrapper" class="collapsed">
+    <div id="trackerTable"></div>
+  </div>
+</div>
+
+</section>
 
 <script src="app.js"></script>
 </body>

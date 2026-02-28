@@ -1,22 +1,597 @@
-body {
-  background: #0f172a;
-  color: white;
-  font-family: Arial;
-  padding: 20px;
+
+body{background:#0f172a;color:#e2e8f0;font-family:Inter,sans-serif;margin:0;padding:20px}
+.main-header{text-align:center;margin-bottom:30px}
+.logo-3d{font-size:42px;font-weight:800;color:#fff;text-shadow:0 0 20px rgba(0,255,140,.6)}
+.tabs button{background:#1e293b;color:#fff;border:none;padding:8px 16px;border-radius:8px;margin:0 5px;cursor:pointer}
+.tabs .active{background:#334155}
+
+.bets-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap:10px;
+}
+.card{
+  background: rgba(30,41,59,0.70);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding:10px 12px;
+  border-radius:10px;
+  font-size:13px;
+  line-height:1.3;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+  backdrop-filter: blur(6px);
 }
 
-.card {
-  background: #1e293b;
-  padding: 15px;
+.tracker-controls{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:30px;
+  flex-wrap:nowrap;
+}
+input{background:#1e293b;border:1px solid #334155;color:#fff;padding:6px;width:65px;border-radius:6px}
+button{background:#334155;color:#fff;border:none;padding:6px 12px;border-radius:8px;cursor:pointer}
+
+.stats-grid{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:14px;
+  margin-top:25px;     /* space under Starting Bankroll row */
+  margin-bottom:25px;
+}
+.stat-card{background:#1e293b;padding:16px;border-radius:14px;text-align:center}
+.glow-green{box-shadow:0 0 20px rgba(34,197,94,.55)}
+.glow-red{box-shadow:0 0 20px rgba(239,68,68,.55)}
+
+canvas{margin-bottom:20px}
+
+table{width:100%;border-collapse:collapse;}
+th,td{padding:6px 4px;border-bottom:1px solid #334155;font-size:13px}
+th{text-align:left}
+
+/* Date column (tracker results) */
+.date-col{width:72px;white-space:nowrap;opacity:0.9}
+
+.profit-col{text-align:right;white-space:nowrap}
+
+.profit-win{color:#22c55e;font-weight:600}
+.profit-loss{color:#ef4444;font-weight:600}
+
+.result-select{border-radius:6px;padding:4px}
+
+.result-won{
+  background:rgba(34,197,94,0.15);
+  color:#22c55e;
+  border:1px solid rgba(34,197,94,0.35);
+}
+
+.result-lost{
+  background:rgba(239,68,68,0.15);
+  color:#ef4444;
+  border:1px solid rgba(239,68,68,0.35);
+}
+
+.result-pending{
+  background:#1e293b;
+  color:#cbd5e1;
+  border:1px solid #334155;
+}
+
+
+/* Enhanced Collapsible */
+.tracker-history{margin-top:20px}
+
+.tracker-toggle{
+  background:#1e293b;
+  padding:12px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  transition:0.2s ease;
+}
+
+.tracker-toggle:hover{background:#243044}
+
+#trackerWrapper{
+  overflow:hidden;
+  transition:max-height 0.35s ease, opacity 0.25s ease;
+}
+
+#trackerWrapper.collapsed{
+  max-height:0;
+  opacity:0;
+}
+
+#trackerWrapper.expanded{
+  max-height:2000px;
+  opacity:1;
+}
+
+
+/* Analytics strip */
+.analytics-strip{
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 14px 0 10px 0;
+}
+
+.mini-card{
+  background: rgba(30,41,59,0.55);
+  border: 1px solid rgba(51,65,85,0.55);
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+}
+
+.mini-label{
+  font-size: 12px;
+  opacity: 0.78;
+  margin-bottom: 6px;
+}
+
+.mini-value{
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-value.positive{ color: #22c55e; }
+.mini-value.negative{ color: #ef4444; }
+
+/* Chart tabs */
+.chart-tabs{
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 10px 0;
+}
+
+.tab-btn{
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(51,65,85,0.55);
+  background: rgba(30,41,59,0.35);
+  color: #e2e8f0;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.tab-btn.active{
+  background: rgba(34,197,94,0.16);
+  border-color: rgba(34,197,94,0.35);
+}
+
+/* Chart panes */
+.chart-wrap{
+  width: 100%;
   margin-bottom: 10px;
-  border-radius: 10px;
 }
 
-button {
-  background: green;
-  color: white;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+.chart-pane{
+  display: none;
+}
+
+.chart-pane.active{
+  display: block;
+}
+
+#chart, #marketChart{
+  width: 100% !important;
+  height: 300px !important;
+}
+
+#monthlyChart{
+  width: 100% !important;
+  height: 400px !important;
+}
+
+.bet-count{
+  opacity: 0.85;
+  font-weight: 800;
+}
+
+
+/* Insights dropdown (replaces 4 mini-cards) */
+.insights{ width:100%; margin: 8px 0 12px; }
+.insights-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 0 2px; }
+.insights-title{ margin:0; font-size: 18px; letter-spacing: 0.2px; }
+.insights-select{
+  appearance:none;
+  background: rgba(255,255,255,0.06);
+  color: #e5e7eb;
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-weight: 700;
+  outline: none;
+  min-width: 150px;
+}
+.insights-select:focus{
+  border-color: rgba(34,197,94,0.55);
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.18);
+}
+
+.insights-card{
+  margin-top: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 18px;
+  padding: 14px 14px;
+}
+.insight-label{ opacity:0.75; font-weight: 700; margin-bottom: 6px; }
+.insight-value{ font-size: 20px; font-weight: 900; letter-spacing: 0.2px; }
+.insights-hidden{ display:none; }
+
+
+/* Collapsible Insights */
+.insights-wrapper{margin:20px 0}
+
+.insights-toggle{
+  background:#1e293b;
+  padding:12px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  transition:0.2s ease;
+}
+
+.insights-toggle:hover{background:#243044}
+
+#insightsContent{
+  overflow:hidden;
+  transition:max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.insights-collapsed{
+  max-height:0;
+  opacity:0;
+}
+
+.insights-expanded{
+  max-height:600px;
+  opacity:1;
+}
+
+.monthly-breakdown{margin-top:20px}
+.monthly-toggle{
+  background:#1e293b;
+  padding:12px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+  display:flex;
+  justify-content:space-between;
+}
+#monthlyWrapper{
+  overflow:hidden;
+  transition:max-height 0.35s ease, opacity 0.25s ease;
+}
+#monthlyWrapper.collapsed{max-height:0;opacity:0}
+#monthlyWrapper.expanded{max-height:2000px;opacity:1}
+
+
+
+
+/* ===== FINAL CLEAN STARTING BANKROLL ALIGNMENT ===== */
+
+.tracker-controls{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin-bottom:20px;
+}
+
+.tracker-controls label{
+  min-width:160px;
+  margin:0;
+}
+
+#startingBankroll{
+  width:80px;
+}
+
+.tracker-controls button{
+  margin-left:0;
+}
+
+/* keep stake/result sizing */
+#trackerTable input[type="number"]{
+  width:65px;
+}
+
+#trackerTable select{
+  min-width:90px;
+  width:90px;
+  padding:4px 6px;
+}
+
+
+/* ===== Mobile Fit Tracker Table ===== */
+@media (max-width: 600px){
+
+  #trackerTable th,
+  #trackerTable td{
+    font-size:12px;
+    padding:6px 2px;
+  }
+
+  .date-col{
+    width:60px;
+    font-size:11px;
+  }
+
+  #trackerTable input[type="number"]{
+    width:55px;
+  }
+
+  #trackerTable select{
+    width:75px;
+    min-width:75px;
+    font-size:11px;
+    padding:3px;
+  }
+
+  .profit-col{
+    font-size:12px;
+  }
+
+}
+
+
+/* ===== Tracker Filters UI ===== */
+
+.tracker-filters{
+  display:flex;
+  gap:8px;
+  margin:12px 0 10px 0;
+  flex-wrap:wrap;
+}
+
+.tracker-filters input{
+  width:auto;
+  min-width:110px;
+  padding:6px 8px;
+}
+
+.tracker-filters button{
+  padding:6px 10px;
+  font-size:12px;
+}
+
+
+
+/* ===== Value Bets: compact tiles ===== */
+.bet-card{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.bet-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(0,0,0,0.28);
+  border-color: rgba(34,197,94,0.22);
+}
+
+.bet-title{
+  font-size:14px;
+  margin:0;
+  font-weight:800;
+  letter-spacing:0.1px;
+}
+
+.bet-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  font-size:12px;
+  opacity:0.86;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.bet-market{
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.bet-date{
+  opacity:0.75;
+}
+
+.bet-footer{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:2px;
+}
+
+.odds-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 8px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  white-space:nowrap;
+}
+
+.odds-badge strong{
+  font-weight:900;
+}
+
+.bet-btn{
+  padding:5px 9px;
+  font-size:12px;
+  border-radius:8px;
+  background: rgba(34,197,94,0.16);
+  border: 1px solid rgba(34,197,94,0.30);
+  color:#e2e8f0;
+  font-weight:800;
+}
+
+.bet-btn:hover{
+  background: rgba(34,197,94,0.22);
+}
+
+
+
+
+/* Make the whole layout compact on mobile without touching desktop much */
+@media (max-width: 600px){
+  body{ padding: 14px; }
+
+  .main-header{ margin-bottom: 18px; }
+  .logo-3d{ font-size: 34px; }
+
+  .tabs button{
+    padding: 8px 14px;
+    border-radius: 12px;
+  }
+
+  .bets-grid{
+    gap: 10px;
+  }
+
+  .bet-title{
+    font-size: 15px;
+  }
+
+  .bet-meta{
+    font-size: 12px;
+  }
+
+  .odds-badge{
+    padding: 5px 8px;
+  }
+
+  .bet-btn{
+    padding: 6px 10px;
+    border-radius: 10px;
+  }
+}
+
+/* Super small phones: single-column for maximum readability */
+@media (max-width: 360px){
+  .bets-grid{ grid-template-columns: 1fr; }
+}
+
+
+/* ===== Value Bets: Option 1 — Sharp Sportsbook ===== */
+.bet-card{
+  position: relative;
+  background: #111827;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+}
+
+.bet-card::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:3px;
+  background: rgba(34,197,94,0.95);
+  border-radius: 14px 0 0 14px;
+  opacity: 0.9;
+}
+
+.bet-title{
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+}
+
+.bet-meta{
+  opacity: 0.72;
+}
+
+.odds-badge{
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.bet-btn{
+  background: rgba(34,197,94,0.15);
+  border: 1px solid rgba(34,197,94,0.35);
+}
+
+.bet-card:hover{
+  transform: translateY(-2px);
+  border-color: rgba(34,197,94,0.22);
+  box-shadow: 0 14px 36px rgba(0,0,0,0.32);
+}
+
+/* Mobile: slightly tighter but same footprint */
+@media (max-width: 600px){
+  .bet-title{ font-size: 15px; }
+  .bet-meta{ font-size: 12px; }
+}
+
+
+/* ===== Value Bets: High Value glow (manual flag) ===== */
+/* Add a boolean column: value_bets.high_value = true for featured bets */
+.bet-card--hv{
+  border-color: rgba(34,197,94,0.38);
+  box-shadow:
+    0 0 14px rgba(34,197,94,0.22),
+    0 12px 28px rgba(0,0,0,0.30);
+}
+
+.bet-card--hv::before{
+  opacity: 1;
+}
+
+.bet-card--hv .odds-badge{
+  background: rgba(34,197,94,0.14);
+  border-color: rgba(34,197,94,0.40);
+}
+
+
+
+/* ===== Value % chip (Value Bets cards) ===== */
+.bet-stats{
+  display:flex;
+  gap:8px;
+  margin-top:2px;
+}
+
+.stat-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:5px 8px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  font-size:12px;
+  white-space:nowrap;
+}
+
+.stat-chip__k{
+  opacity:0.70;
+  font-weight:800;
+  letter-spacing:0.2px;
+}
+
+.stat-chip__v{
+  font-weight:900;
+  font-variant-numeric: tabular-nums;
 }
