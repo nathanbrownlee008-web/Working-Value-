@@ -29,16 +29,11 @@ betsGrid.innerHTML="";
 if(!data) return;
 data.forEach(row=>{
 betsGrid.innerHTML+=`
-<div class="card bet-card">
-  <h3 class="bet-title">${row.match}</h3>
-  <div class="bet-meta">
-    <span class="bet-market">${row.market}</span>
-    <span class="bet-date">${row.bet_date}</span>
-  </div>
-  <div class="bet-footer">
-    <span class="odds-badge">Odds <strong>${row.odds}</strong></span>
-    <button class="bet-btn" onclick='addToTracker(${JSON.stringify(row)})'>Add</button>
-  </div>
+<div class="card">
+<h3>${row.match}</h3>
+<p>${row.market} • ${row.bet_date}</p>
+<p>Odds: ${row.odds}</p>
+<button onclick='addToTracker(${JSON.stringify(row)})'>Add to Tracker</button>
 </div>`;
 });
 }
