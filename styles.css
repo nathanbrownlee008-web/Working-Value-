@@ -451,6 +451,58 @@ th{text-align:left}
 
 
 
+/* ===== Value Bets: style polish (mobile-first) ===== */
+:root{
+  --panel: rgba(30,41,59,0.70);
+  --panel-2: rgba(17,24,39,0.55);
+  --stroke: rgba(255,255,255,0.07);
+  --stroke-2: rgba(34,197,94,0.22);
+  --text: rgba(226,232,240,0.95);
+  --muted: rgba(226,232,240,0.72);
+}
+
+.bet-card{
+  /* keep same size, just nicer */
+  background: linear-gradient(180deg, var(--panel) 0%, var(--panel-2) 100%);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+}
+
+.bet-title{
+  color: var(--text);
+  letter-spacing: 0.15px;
+}
+
+.bet-meta{
+  color: var(--muted);
+}
+
+.bet-market{
+  max-width: 70%;
+}
+
+.bet-date{
+  font-variant-numeric: tabular-nums;
+}
+
+.odds-badge{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.odds-badge::before{
+  content:"•";
+  opacity:0.55;
+  margin-right:2px;
+}
+
+.bet-btn{
+  box-shadow: 0 10px 22px rgba(0,0,0,0.25);
+}
+
+.bet-btn:active{
+  transform: translateY(1px);
+}
 
 /* Make the whole layout compact on mobile without touching desktop much */
 @media (max-width: 600px){
@@ -490,77 +542,3 @@ th{text-align:left}
 @media (max-width: 360px){
   .bets-grid{ grid-template-columns: 1fr; }
 }
-
-
-/* ===== Value Bets: Option 1 — Sharp Sportsbook ===== */
-.bet-card{
-  position: relative;
-  background: #111827;
-  border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 14px;
-  box-shadow: 0 12px 28px rgba(0,0,0,0.28);
-}
-
-.bet-card::before{
-  content:"";
-  position:absolute;
-  left:0;
-  top:0;
-  bottom:0;
-  width:3px;
-  background: rgba(34,197,94,0.95);
-  border-radius: 14px 0 0 14px;
-  opacity: 0.9;
-}
-
-.bet-title{
-  font-weight: 900;
-  font-size: 15px;
-  letter-spacing: 0.2px;
-}
-
-.bet-meta{
-  opacity: 0.72;
-}
-
-.odds-badge{
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.10);
-}
-
-.bet-btn{
-  background: rgba(34,197,94,0.15);
-  border: 1px solid rgba(34,197,94,0.35);
-}
-
-.bet-card:hover{
-  transform: translateY(-2px);
-  border-color: rgba(34,197,94,0.22);
-  box-shadow: 0 14px 36px rgba(0,0,0,0.32);
-}
-
-/* Mobile: slightly tighter but same footprint */
-@media (max-width: 600px){
-  .bet-title{ font-size: 15px; }
-  .bet-meta{ font-size: 12px; }
-}
-
-
-/* ===== Value Bets: High Value glow (manual flag) ===== */
-/* Add a boolean column: value_bets.high_value = true for featured bets */
-.bet-card--hv{
-  border-color: rgba(34,197,94,0.38);
-  box-shadow:
-    0 0 14px rgba(34,197,94,0.22),
-    0 12px 28px rgba(0,0,0,0.30);
-}
-
-.bet-card--hv::before{
-  opacity: 1;
-}
-
-.bet-card--hv .odds-badge{
-  background: rgba(34,197,94,0.14);
-  border-color: rgba(34,197,94,0.40);
-}
-
