@@ -24,7 +24,7 @@ tabTracker.classList.toggle("active",!show);
 }
 
 async function loadBets(){
-const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+const {data}=await client.from("value_bets").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
 if(!data) return;
 data.forEach(row=>{
@@ -46,17 +46,25 @@ betsGrid.innerHTML+=`
 });
 }
 
+
 async function addToTracker(row){
-await client.from("bet_tracker").insert({
-match:row.match,
-market:row.market,
-odds:row.odds,
-match_date_date: row.bet_date,
-stake:10,
-result:"pending"
-});
-loadTracker();
+  const { error } = await client.from("bet_tracker").insert({
+    match: row.match,
+    market: row.market,
+    odds: row.odds,
+    stake: 10,
+    result: "pending"
+  });
+
+  if(error){
+    console.error("Insert failed:", error);
+    alert("Insert failed. Check console.");
+    return;
+  }
+
+  loadTracker();
 }
+
 
 // ===== Insights (dropdown) =====
 const insightStore = {
