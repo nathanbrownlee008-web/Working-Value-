@@ -24,7 +24,7 @@ tabTracker.classList.toggle("active",!show);
 }
 
 async function loadBets(){
-const {data}=await client.from("value_bets").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+const {data}=await client.from("value_bets").select("*").order("bet_date",{ascending:false});
 betsGrid.innerHTML="";
 if(!data) return;
 data.forEach(row=>{
@@ -33,10 +33,7 @@ betsGrid.innerHTML+=`
   <h3 class="bet-title">${row.match}</h3>
   <div class="bet-meta">
     <span class="bet-market">${row.market}</span>
-    <span class="bet-date">${row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
-  </div>
-  <div class="bet-stats">
-    <span class="stat-chip"><span class="stat-chip__k">Value</span><span class="stat-chip__v">${(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value) != null ? Number(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value).toFixed(1)+'%' : '—'}</span></span>
+    <span class="bet-date">${row.bet_date}</span>
   </div>
   <div class="bet-footer">
     <span class="odds-badge">Odds <strong>${row.odds}</strong></span>

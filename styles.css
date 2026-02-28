@@ -564,34 +564,3 @@ th{text-align:left}
   border-color: rgba(34,197,94,0.40);
 }
 
-
-
-/* ===== Value % chip (Value Bets cards) ===== */
-.bet-stats{
-  display:flex;
-  gap:8px;
-  margin-top:2px;
-}
-
-.stat-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:5px 8px;
-  border-radius:999px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.10);
-  font-size:12px;
-  white-space:nowrap;
-}
-
-.stat-chip__k{
-  opacity:0.70;
-  font-weight:800;
-  letter-spacing:0.2px;
-}
-
-.stat-chip__v{
-  font-weight:900;
-  font-variant-numeric: tabular-nums;
-}
