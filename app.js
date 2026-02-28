@@ -37,6 +37,9 @@ tabTracker.classList.toggle("active",!show);
 }
 
 async function loadBets(){
+  // Rebuild "Added" state from tracker every time we render the feed.
+  // This ensures that if a bet is deleted from the tracker, the feed button returns to "Add".
+  addedKeys.clear();
   // Preload tracker rows so already-added bets render as "Added"
   try{
     const { data: tdata, error: terr } = await client
@@ -509,6 +512,8 @@ async function updateResult(id,val){
 if(val==="delete"){
 if(!confirm("Delete this bet?")){loadTracker();return;}
 await client.from("bet_tracker").delete().eq("id",id);
+// Refresh the Value Bets feed so the button switches back from "Added" to "Add".
+loadBets();
 }else{
 await client.from("bet_tracker").update({result:val}).eq("id",id);
 }
