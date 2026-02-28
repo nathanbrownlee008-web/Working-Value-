@@ -12,6 +12,19 @@ const lossesElem=document.getElementById("losses");
 const avgOddsElem=document.getElementById("avgOdds");
 const profitCard=document.getElementById("profitCard");
 
+// Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
+const addedKeys = new Set();
+
+function makeBetKey(row){
+  // Prefer stable IDs if present
+  if(row && row.id != null) return `id:${row.id}`;
+  const m = row?.match ?? '';
+  const mk = row?.market ?? '';
+  const o = row?.odds ?? '';
+  const d = row?.bet_date ?? row?.match_date ?? row?.created_at ?? '';
+  return `k:${m}|${mk}|${o}|${d}`;
+}
+
 tabBets.onclick=()=>switchTab(true);
 tabTracker.onclick=()=>switchTab(false);
 
@@ -24,10 +37,25 @@ tabTracker.classList.toggle("active",!show);
 }
 
 async function loadBets(){
+  // Preload tracker rows so already-added bets render as "Added"
+  try{
+    const { data: tdata, error: terr } = await client
+      .from("bet_tracker")
+      .select("match,market,odds")
+      .limit(1000);
+    if(!terr && Array.isArray(tdata)){
+      tdata.forEach(r => addedKeys.add(makeBetKey(r)));
+    }
+  }catch(e){
+    // Ignore preload failures
+  }
+
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
 if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
 data.forEach(row=>{
+  const key = makeBetKey(row);
+  const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
 <div class="card bet-card ${row.high_value ? 'bet-card--hv' : ''}">
   <h3 class="bet-title">${row.match}</h3>
@@ -40,14 +68,23 @@ betsGrid.innerHTML+=`
   </div>
   <div class="bet-footer">
     <span class="odds-badge">Odds <strong>${row.odds}</strong></span>
-    <button class="bet-btn" onclick='addToTracker(${JSON.stringify(row)})'>Add</button>
+    <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
 });
 }
 
 
-async function addToTracker(row){
+async function addToTracker(btn, row){
+  const key = makeBetKey(row);
+  if(addedKeys.has(key)) return;
+
+  // Optimistic UI
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+  }
+
   const payload = {
     match: row.match,
     market: row.market,
@@ -63,11 +100,21 @@ async function addToTracker(row){
 
   if(error){
     console.error("Insert failed:", error);
-    alert("Insert failed: " + error.message);
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'Add';
+    }
     return;
   }
 
-  alert("Added ✅");
+  addedKeys.add(key);
+  if(btn){
+    btn.textContent = 'Added';
+    btn.classList.add('added', 'flash');
+    // remove the flash class after animation
+    setTimeout(()=>btn.classList.remove('flash'), 700);
+    btn.disabled = true;
+  }
   loadTracker();
 }
 

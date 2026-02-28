@@ -449,6 +449,28 @@ th{text-align:left}
   background: rgba(34,197,94,0.22);
 }
 
+/* Added state (no popup; button changes + locks to prevent duplicates) */
+.bet-btn.added{
+  border-color: rgba(34,197,94,0.85);
+  background: rgba(34,197,94,0.30);
+  color: #ecfff5;
+  cursor: default;
+}
+
+.bet-btn:disabled{
+  opacity: 0.95;
+}
+
+.bet-btn.flash{
+  animation: betBtnFlash .65s ease;
+}
+
+@keyframes betBtnFlash{
+  0%{ transform: scale(1); filter: brightness(1); }
+  40%{ transform: scale(1.06); filter: brightness(1.35); }
+  100%{ transform: scale(1); filter: brightness(1); }
+}
+
 
 
 
