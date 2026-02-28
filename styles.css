@@ -699,3 +699,38 @@ th{text-align:left}
   border-color: rgba(239, 68, 68, 0.45);
   background: rgba(239, 68, 68, 0.12);
 }
+
+
+/* Daily History header ratio + compact pills */
+.history-summary-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+}
+.history-ratio{
+  font-weight:900;
+  padding:6px 10px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.history-summary-sub{
+  margin-top:10px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.pill-sm{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.pill-sm.win{ border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.10); }
+.pill-sm.loss{ border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.10); }
+.pill-sm.pending{ border-color: rgba(148,163,184,0.25); background: rgba(148,163,184,0.08); }

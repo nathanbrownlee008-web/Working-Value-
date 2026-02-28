@@ -78,10 +78,10 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds")
+      .select("match,market,odds,archived")
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
-      tdata.forEach(r => addedKeys.add(makeBetKey(r)));
+      tdata.forEach(r => { if(!r.archived) addedKeys.add(makeBetKey(r)); });
     }
   }catch(e){
     // Ignore preload failures
@@ -382,11 +382,17 @@ function renderHistory(){
   });
   const roi = staked>0 ? (profit/staked)*100 : 0;
 
+  
+  const settled = won + lost;
   historySummaryEl.innerHTML = `
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-      <div><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
-      <div>Won: <strong>${won}</strong> &nbsp; Lost: <strong>${lost}</strong> &nbsp; Pending: <strong>${pending}</strong></div>
-      <div>Staked: <strong>£${staked.toFixed(2)}</strong> &nbsp; Profit: <strong>£${profit.toFixed(2)}</strong> &nbsp; ROI: <strong>${roi.toFixed(1)}%</strong></div>
+    <div class="history-summary-row">
+      <div class="history-summary-left"><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
+      <div class="history-summary-right"><span class="history-ratio">${won}/${settled || 0}</span></div>
+    </div>
+    <div class="history-summary-sub">
+      <span class="pill-sm win">✅ Won <strong>${won}</strong></span>
+      <span class="pill-sm loss">❌ Lost <strong>${lost}</strong></span>
+      <span class="pill-sm pending">⏳ Pending <strong>${pending}</strong></span>
     </div>
   `;
 
@@ -426,8 +432,6 @@ function renderHistory(){
         </div>
         <div class="bet-bottom">
           <div class="pill">Odds <strong>${odds || "-"}</strong></div>
-          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
-          <div class="pill">Profit <strong>${profitTxt}</strong></div>
         </div>
       `;
 
@@ -496,19 +500,28 @@ const {data}=await client.from("bet_tracker").select("*").order("created_at",{as
 const rows = data || [];
 trackerRowsCache = rows;
 trackerAllRows = rows;
+const displayedRows = rows.filter(r=>!r.archived);
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);
 let bankroll=start,profit=0,wins=0,losses=0,totalStake=0,totalOdds=0,history=[];
 
-	let html="<table><tr><th class='date-col'>Date</th><th>Match</th><th>Stake</th><th>Result</th><th class='profit-col'>Profit</th></tr>";
+// Stats are calculated from ALL rows (including archived) so progress stays accurate
+rows.forEach(r=>{
+  let p=0;
+  if(r.result==="won"){p=r.stake*(r.odds-1);wins++;}
+  if(r.result==="lost"){p=-r.stake;losses++;}
+  profit+=p; totalStake+=r.stake; totalOdds+=r.odds;
+  bankroll=start+profit; history.push(bankroll);
+});
 
-rows.forEach(row=>{
+	let html="<table><tr><th class='date-col'>Date</th><th>Match</th><th>Stake</th><th>Result</th><th class='profit-col'>Profit</th></tr>";
+><tr><th class='date-col'>Date</th><th>Match</th><th>Stake</th><th>Result</th><th class='profit-col'>Profit</th></tr>";
+
+displayedRows.forEach(row=>{
 let p=0;
-if(row.result==="won"){p=row.stake*(row.odds-1);wins++;}
-if(row.result==="lost"){p=-row.stake;losses++;}
-profit+=p;totalStake+=row.stake;totalOdds+=row.odds;
-bankroll=start+profit;history.push(bankroll);
+if(row.result==="won"){p=row.stake*(row.odds-1);} 
+if(row.result==="lost"){p=-row.stake;}
 
 const gameDate = row.match_date_date || row.bet_date || row.created_at;
 html+=`<tr>
@@ -542,7 +555,7 @@ if(wonLostElem){
   wonLostElem.innerText = `${wins}-${losses}`;
 }
 
-const totalBets = rows.length;
+const totalBets = displayedRows.length;
 const totalElem = document.getElementById("totalBets");
 if(totalElem) totalElem.innerText = totalBets;
 const totalStakedCard = document.getElementById("totalStakedCard");
@@ -551,7 +564,7 @@ if(totalStakedCard){
 }
 
 
-avgOddsElem.innerText=rows.length?(totalOdds/rows.length).toFixed(2):0;
+avgOddsElem.innerText=displayedRows.length?(totalOdds/displayedRows.length).toFixed(2):0;
 
 profitCard.classList.remove("glow-green","glow-red");
 if(profit>0) profitCard.classList.add("glow-green");
