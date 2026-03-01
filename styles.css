@@ -560,6 +560,20 @@ th{text-align:left}
 }
 .history-card-bottom{ margin-top: 8px; }
 
+/* Make WON/LOST badge a touch smaller in Daily History */
+.history-card .result-badge{
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+/* Day groups (collapsible sections) */
+.history-day{ margin-top: 14px; }
+.history-day .history-day-list{ margin-top: 10px; }
+.history-day.collapsed .history-day-list{ display:none; }
+
+.history-summary-actions{ display:flex; align-items:center; gap:10px; }
+.history-chips.compact{ display:flex; gap:10px; flex-wrap:wrap; }
+
 .bet-title{
   font-weight: 900;
   font-size: 15px;
