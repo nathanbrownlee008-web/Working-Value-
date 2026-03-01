@@ -90,9 +90,17 @@ async function loadBets(){
   }
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+const todayKey = localISODate(new Date());
+const feedRows = (data || []).filter(row=>{
+  // Use bet_date when provided, otherwise created_at
+  const raw = row.bet_date || row.match_date || row.created_at;
+  const k = localISODate(raw);
+  return k === todayKey;
+});
+
 betsGrid.innerHTML="";
-if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
- (data || []).forEach(row=>{
+if(!feedRows || !feedRows.length){ betsGrid.innerHTML = `<div class="card">No value bets for today yet.</div>`; return; }
+ (feedRows || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -319,6 +327,17 @@ function fmtDayLabel(d){
   const dt = new Date(d);
   if(Number.isNaN(dt.getTime())) return String(d);
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+
+
+function localISODate(dt){
+  // YYYY-MM-DD in *local* time (avoids UTC date rollover issues)
+  const d = (dt instanceof Date) ? dt : new Date(dt);
+  if(Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
 }
 
 function escapeHtml(str){
