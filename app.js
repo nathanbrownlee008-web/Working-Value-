@@ -7,10 +7,6 @@ const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
 const roiElem=document.getElementById("roi");
 const winrateElem=document.getElementById("winrate");
-const winsElem=document.getElementById("wins");
-const lossesElem=document.getElementById("losses");
-const avgOddsElem=document.getElementById("avgOdds");
-const profitCard=document.getElementById("profitCard");
 const betsSection=document.getElementById("betsSection");
 const betsGrid=document.getElementById("betsGrid");
 const tabBets=document.getElementById("tabBets");
@@ -18,12 +14,17 @@ const tabTracker=document.getElementById("tabTracker");
 const tabHistory=document.getElementById("tabHistory");
 const trackerSection=document.getElementById("trackerSection");
 const historySection=document.getElementById("historySection");
+const winsElem=document.getElementById("wins");
+const lossesElem=document.getElementById("losses");
+const avgOddsElem=document.getElementById("avgOdds");
+const profitCard=document.getElementById("profitCard");
 
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
 
 function _normalizeKeyDate(raw){
   if(!raw) return "";
+  // Accept YYYY-MM-DD or ISO strings, output YYYY-MM-DD when possible
   const s = String(raw);
   const m = s.match(/^\d{4}-\d{2}-\d{2}/);
   if(m) return m[0];
@@ -33,15 +34,13 @@ function _normalizeKeyDate(raw){
 }
 
 function makeBetKey(row){
+  // Use a stable composite key that exists in BOTH feed rows and tracker rows
   const match = (row?.match ?? "").toString().trim();
   const market = (row?.market ?? "").toString().trim();
   const odds = (row?.odds ?? "").toString().trim();
   const date = _normalizeKeyDate(row?.bet_date || row?.match_date || row?.match_date_date || row?.created_at);
   return `k:${match}|${market}|${odds}|${date}`;
 }
-
-
-
 
 // Top navigation tabs
 const tabHistoryEl = document.getElementById("tabHistory");
@@ -101,7 +100,7 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds,bet_date,created_at,match_date,match_date_date")
+      .select("match,market,odds,bet_date,match_date,match_date_date,created_at")
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
@@ -111,35 +110,9 @@ async function loadBets(){
   }
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
-const todayKey = localISODate(new Date());
-const feedRows = (data || []).filter(row=>{
-  // Use bet_date when provided, otherwise created_at
-  const raw = row.bet_date || row.match_date || row.created_at;
-  const k = localISODate(raw);
-  return k === todayKey;
-});
-
 betsGrid.innerHTML="";
-if(!feedRows || !feedRows.length){
-    const todayKeyDbg = todayKey;
-    const future = (data || []).filter(r=>{
-      const raw = r.bet_date || r.match_date || r.created_at;
-      const k = localISODate(raw);
-      return k && k > todayKeyDbg;
-    });
-    const dates = future.map(r=>localISODate(r.bet_date || r.match_date || r.created_at)).filter(Boolean).sort();
-    const nextDate = dates.length ? dates[0] : "";
-    betsGrid.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-title">No value bets for today</div>
-        <div class="empty-sub">Today: <strong>${todayKeyDbg}</strong></div>
-        <div class="empty-sub">If you added a bet, make sure it was inserted into <strong>value_bets_feed</strong> and set <strong>bet_date</strong> to today.</div>
-        ${future.length ? `<div class="empty-sub">You have <strong>${future.length}</strong> upcoming bet(s). Next bet date: <strong>${nextDate}</strong></div>` : ``}
-      </div>
-    `;
-    return;
-  }
- (feedRows || []).forEach(row=>{
+if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
+ (data || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -176,7 +149,7 @@ async function addToTracker(btn, row){
     market: row.market,
     odds: row.odds,
     bet_date: row.bet_date || null,
-        stake: 10,
+    stake: 10,
     result: "pending"
   };
 
@@ -189,7 +162,7 @@ async function addToTracker(btn, row){
     console.error("Insert failed:", error);
     if(btn){
       btn.disabled = false;
-      btn.textContent = "Add";
+      btn.textContent = 'Add';
     }
     return;
   }
@@ -365,21 +338,6 @@ function fmtDayLabel(d){
   const dt = new Date(d);
   if(Number.isNaN(dt.getTime())) return String(d);
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-
-
-function localISODate(dt){
-  // YYYY-MM-DD in *local* time (avoid UTC rollover + date-string parsing issues)
-  if(dt == null) return "";
-  const s = String(dt);
-  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
-  if(m) return m[0];
-  const d = (dt instanceof Date) ? dt : new Date(dt);
-  if(Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const mo = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${mo}-${day}`;
-}
 }
 
 function escapeHtml(str){
@@ -469,7 +427,6 @@ function renderHistory(){
 
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
-    const winrate = settled ? Math.round((won / settled) * 100) : 0;
 
     const collapsed = !window.__historyOpen[dayKey];
 
@@ -485,10 +442,7 @@ function renderHistory(){
           </div>
 
           <div class="daily-toggle-right">
-            <div class="history-ratio-wrap">
-              <span class="history-day-ratio">${ratio}</span>
-              <span class="history-winrate ${winrate>=70 ? "wr-hot" : winrate>=55 ? "wr-good" : winrate>=40 ? "wr-mid" : "wr-bad"}">${winrate>=70 ? "🔥 " : ""}Winrate ${winrate}%</span>
-            </div>
+            <span class="history-day-ratio">${ratio}</span>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
