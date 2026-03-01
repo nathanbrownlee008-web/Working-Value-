@@ -438,7 +438,7 @@ function renderHistory(){
           <div class="daily-toggle-right">
             <div class="history-ratio-wrap">
               <span class="history-day-ratio">${ratio}</span>
-              <span class="history-winrate">${winrate}%</span>
+              <span class="history-winrate ${winrate>=70 ? "wr-hot" : winrate>=55 ? "wr-good" : winrate>=40 ? "wr-mid" : "wr-bad"}">${winrate>=70 ? "🔥 " : ""}Winrate ${winrate}%</span>
             </div>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>

@@ -1272,3 +1272,32 @@ th{text-align:left}
   .history-winrate{ font-size:11px; }
 }
 
+
+/* ---- Winrate label styling + alignment ---- */
+.history-ratio-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  line-height:1.1;
+}
+
+/* push winrate slightly lower so it aligns visually with the chip row */
+.history-winrate{
+  font-size:14px;          /* bigger */
+  font-weight:800;
+  opacity:0.92;
+  margin-top:10px;         /* moved down */
+  letter-spacing:0.2px;
+}
+
+/* colour by winrate */
+.history-winrate.wr-hot{ color: rgba(34,197,94,0.95); text-shadow: 0 0 14px rgba(34,197,94,0.25); }
+.history-winrate.wr-good{ color: rgba(34,197,94,0.85); }
+.history-winrate.wr-mid{ color: rgba(245,158,11,0.90); }
+.history-winrate.wr-bad{ color: rgba(239,68,68,0.90); }
+
+/* small phones */
+@media (max-width:520px){
+  .history-winrate{ font-size:13px; margin-top:10px; }
+}
+
