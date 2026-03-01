@@ -1106,198 +1106,116 @@ th{text-align:left}
 
 .history-day.collapsed .history-day-bets { display: none; }
 
-
-/* ---- Daily History header: inline chips, neat fit ---- */
-.daily-toggle.history-toggle{
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 10px;
+/* ---- Empty state (Value Bets) ---- */
+.empty-state{
+  margin: 14px auto;
+  padding: 16px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.88);
+  max-width: 520px;
 }
-
-.daily-toggle-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.daily-toggle-left span{
-  overflow:hidden;
-  text-overflow: ellipsis;
-  max-width: 170px;
-  display:inline-block;
-  vertical-align: bottom;
-}
-
-.daily-toggle-center{
-  min-width: 0;
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  flex-wrap: nowrap;
-  overflow: visible;
-}
-
-.daily-toggle-center .history-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.daily-toggle-right{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  white-space: nowrap;
-}
-
-/* Mobile: keep the SAME header button, but stack chips UNDER the date so all are visible */
-@media (max-width: 520px){
-  .daily-toggle.history-toggle{
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "left right"
-      "chips chips";
-    row-gap: 10px;
-  }
-
-  .daily-toggle-left{ grid-area: left; }
-  .daily-toggle-right{ grid-area: right; }
-
-  .daily-toggle-center{
-    grid-area: chips;
-    justify-content:flex-start;
-    gap:10px;
-    overflow-x: auto;                 /* safety for super small devices */
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .daily-toggle-center::-webkit-scrollbar{ display:none; }
-
-  .daily-toggle-left span{ max-width: 220px; }
-
-  .daily-toggle-center .history-chip{
-    padding: 7px 10px;
-    font-size: 13px;
-  }
-}
-
-/* Very small phones: slightly tighter chips but still visible */
-@media (max-width: 380px){
-  .daily-toggle-left span{ max-width: 160px; }
-  .daily-toggle-center .history-chip{ padding: 6px 9px; font-size: 12px; gap:6px; }
-}
-
-.daily-toggle-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  white-space: nowrap;
-}
-
-.daily-toggle-left span{
-  overflow:hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-  display:inline-block;
-  vertical-align: bottom;
-}
-
-.daily-toggle-center{
-  min-width: 0;
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-
-.daily-toggle-center .history-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.daily-toggle-center .history-chip span{
-  opacity: 0.85;
-}
-
-.daily-toggle-center .history-chip strong{
+.empty-title{
   font-weight: 900;
+  font-size: 16px;
+  margin-bottom: 8px;
 }
+.empty-sub{
+  font-size: 13px;
+  opacity: 0.9;
+  line-height: 1.35;
+  margin-top: 6px;
+}
+
+/* ---- Daily History header: inline chips (match picture 2) ---- */
+.daily-toggle.history-toggle{
+  display:grid;
+  grid-template-columns: auto 1fr auto;
+  align-items:center;
+  gap: 12px;
+  width:100%;
+}
+
+.daily-toggle-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  white-space:nowrap;
+  min-width:0;
+}
+
+.daily-toggle-left .date-emoji{ font-size:18px; opacity:0.9; }
+
+.history-day-label{
+  font-weight:900;
+  font-size:18px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width: 220px;
+  display:inline-block;
+}
+
+.daily-toggle-center{
+  min-width:0;
+  display:flex;
+  justify-content:flex-start;
+  gap:10px;
+  flex-wrap:nowrap;
+  overflow-x:auto;           /* keep chips inside header instead of dropping below */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width:none;
+  padding-bottom: 2px;
+}
+.daily-toggle-center::-webkit-scrollbar{ display:none; }
+
+.daily-toggle-center .history-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+}
+
+.daily-toggle-center .history-chip strong{ font-weight:900; }
+.history-chip .chip-ico{ font-size:18px; line-height:1; }
+
+.history-chip.chip-won{ border-color: rgba(34,197,94,0.35); box-shadow: 0 0 0 1px rgba(34,197,94,0.06) inset; }
+.history-chip.chip-lost{ border-color: rgba(239,68,68,0.35); box-shadow: 0 0 0 1px rgba(239,68,68,0.06) inset; }
+.history-chip.chip-pending{ border-color: rgba(245,158,11,0.35); box-shadow: 0 0 0 1px rgba(245,158,11,0.06) inset; }
 
 .daily-toggle-right{
   display:flex;
   align-items:center;
   gap:12px;
-  white-space: nowrap;
+  white-space:nowrap;
 }
 
-/* Small phones: keep inline, slightly tighter text */
-@media (max-width: 420px){
-  .daily-toggle-left span{ max-width: 120px; }
-  .daily-toggle-center{ justify-content:flex-start; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
-  .daily-toggle-center::-webkit-scrollbar{ display:none; }
-  .daily-toggle-center .history-chip{ padding: 6px 9px; font-size: 12px; gap:6px; }
-  .daily-toggle-center .history-chip span{ display:none; } /* hide labels only on very small screens */
+.history-day-ratio{
+  font-weight: 900;
+  font-size: 18px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  min-width: 64px;
+  text-align:center;
 }
 
+.history-chevron{ opacity:0.75; font-weight:900; }
 
-/* ---- Daily History Winrate ---- */
-.history-ratio-wrap{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  line-height:1.1;
+/* Mobile tweaks */
+@media (max-width: 520px){
+  .history-day-label{ max-width: 200px; }
+  .daily-toggle-center .history-chip{ padding: 7px 11px; font-size: 13px; }
+  .history-day-ratio{ font-size: 17px; padding: 9px 12px; }
 }
 
-.history-winrate{
-  font-size:12px;
-  opacity:0.75;
-  margin-top:4px;
+@media (max-width: 380px){
+  .history-day-label{ max-width: 160px; }
+  .daily-toggle-center .history-chip{ padding: 6px 10px; font-size: 12px; gap:6px; }
 }
-
-@media (max-width:520px){
-  .history-winrate{ font-size:11px; }
-}
-
-
-/* ---- Winrate label styling + alignment ---- */
-.history-ratio-wrap{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  line-height:1.1;
-}
-
-/* push winrate slightly lower so it aligns visually with the chip row */
-.history-winrate{
-  font-size:14px;          /* bigger */
-  font-weight:800;
-  opacity:0.92;
-  margin-top:10px;         /* moved down */
-  letter-spacing:0.2px;
-}
-
-/* colour by winrate */
-.history-winrate.wr-hot{ color: rgba(34,197,94,0.95); text-shadow: 0 0 14px rgba(34,197,94,0.25); }
-.history-winrate.wr-good{ color: rgba(34,197,94,0.85); }
-.history-winrate.wr-mid{ color: rgba(245,158,11,0.90); }
-.history-winrate.wr-bad{ color: rgba(239,68,68,0.90); }
-
-/* small phones */
-@media (max-width:520px){
-  .history-winrate{ font-size:13px; margin-top:10px; }
-}
-
