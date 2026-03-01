@@ -11,6 +11,13 @@ const winsElem=document.getElementById("wins");
 const lossesElem=document.getElementById("losses");
 const avgOddsElem=document.getElementById("avgOdds");
 const profitCard=document.getElementById("profitCard");
+const betsSection=document.getElementById("betsSection");
+const betsGrid=document.getElementById("betsGrid");
+const tabBets=document.getElementById("tabBets");
+const tabTracker=document.getElementById("tabTracker");
+const tabHistory=document.getElementById("tabHistory");
+const trackerSection=document.getElementById("trackerSection");
+const historySection=document.getElementById("historySection");
 
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
