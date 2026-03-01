@@ -1127,3 +1127,143 @@ th{text-align:left}
   line-height: 1.35;
   margin-top: 6px;
 }
+
+/* ---- Daily History header: inline chips, neat fit ---- */
+.daily-toggle.history-toggle{
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.daily-toggle-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.daily-toggle-left .date-emoji{
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+.history-day-label{
+  font-weight: 900;
+  font-size: 18px;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  max-width: 210px;
+  display:inline-block;
+}
+
+.daily-toggle-center{
+  min-width: 0;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap: nowrap;
+  overflow: visible;
+}
+
+.daily-toggle-center .history-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+}
+
+.daily-toggle-center .history-chip strong{
+  font-weight: 900;
+}
+
+.history-chip .chip-ico{
+  font-size: 16px;
+  line-height: 1;
+}
+
+.history-chip.chip-won{ border-color: rgba(34,197,94,0.35); box-shadow: 0 0 0 1px rgba(34,197,94,0.06) inset; }
+.history-chip.chip-lost{ border-color: rgba(239,68,68,0.35); box-shadow: 0 0 0 1px rgba(239,68,68,0.06) inset; }
+.history-chip.chip-pending{ border-color: rgba(245,158,11,0.35); box-shadow: 0 0 0 1px rgba(245,158,11,0.06) inset; }
+
+.daily-toggle-right{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  white-space: nowrap;
+}
+
+.history-chevron{
+  opacity: 0.75;
+  font-weight: 900;
+}
+
+/* Ratio + winrate stack */
+.history-ratio-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  line-height:1.1;
+}
+
+.history-day-ratio{
+  font-weight: 900;
+  font-size: 18px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  min-width: 64px;
+  text-align:center;
+}
+
+.history-winrate{
+  font-size:14px;
+  font-weight:800;
+  opacity:0.92;
+  margin-top:10px;
+  letter-spacing:0.2px;
+}
+
+.history-winrate.wr-hot{ color: rgba(34,197,94,0.95); text-shadow: 0 0 14px rgba(34,197,94,0.25); }
+.history-winrate.wr-good{ color: rgba(34,197,94,0.85); }
+.history-winrate.wr-mid{ color: rgba(245,158,11,0.90); }
+.history-winrate.wr-bad{ color: rgba(239,68,68,0.90); }
+
+/* Mobile: keep header button style but stack chips under date (same button) */
+@media (max-width: 520px){
+  .daily-toggle.history-toggle{
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "left right"
+      "chips chips";
+    row-gap: 10px;
+  }
+  .daily-toggle-left{ grid-area: left; }
+  .daily-toggle-right{ grid-area: right; }
+  .daily-toggle-center{
+    grid-area: chips;
+    justify-content:flex-start;
+    gap:10px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width:none;
+    padding-bottom: 2px;
+  }
+  .daily-toggle-center::-webkit-scrollbar{ display:none; }
+  .history-day-label{ max-width: 220px; }
+  .history-day-ratio{ font-size: 17px; padding: 9px 12px; }
+  .history-winrate{ font-size: 13px; margin-top: 10px; }
+}
+
+@media (max-width: 380px){
+  .history-day-label{ max-width: 160px; }
+  .daily-toggle-center .history-chip{ padding: 6px 9px; font-size: 12px; gap:6px; }
+}
