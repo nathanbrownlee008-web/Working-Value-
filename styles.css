@@ -664,45 +664,6 @@ th{text-align:left}
   color: rgba(255,255,255,0.85);
 }
 
-/* Daily History header (compact: ratio + counts only) */
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.history-ratio {
-  font-weight: 800;
-  font-size: 14px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.25);
-}
-
-.history-counts {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.count-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.04);
-}
-
-.count-chip.won { border-color: rgba(0, 200, 120, 0.35); }
-.count-chip.lost { border-color: rgba(255, 70, 70, 0.35); }
-.count-chip.pending { border-color: rgba(255, 200, 70, 0.35); }
-
 .history-card {
   border-left: 4px solid rgba(255,255,255,0.10);
 }
@@ -740,40 +701,26 @@ th{text-align:left}
 }
 
 
-/* ===== History Card Clean Slim Version ===== */
-
-/* Remove green left strip in history */
-.history-card::before{
-  display:none !important;
+.pill-sm{
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:700;
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.05);
 }
 
-/* Slim down history cards */
-.history-card{
-  padding:14px 16px !important;
-  border-radius:18px;
+.pill-sm.win{
+  border-color:rgba(34,197,94,0.4);
+  background:rgba(34,197,94,0.12);
 }
 
-/* Tighten spacing */
-.history-card .bet-top{
-  margin-bottom:6px;
+.pill-sm.loss{
+  border-color:rgba(239,68,68,0.4);
+  background:rgba(239,68,68,0.12);
 }
 
-.history-card .bet-match{
-  font-size:18px;
-  font-weight:800;
+.pill-sm.pending{
+  border-color:rgba(245,158,11,0.4);
+  background:rgba(245,158,11,0.12);
 }
-
-.history-card .bet-market{
-  font-size:14px;
-  opacity:0.8;
-}
-
-.history-card .bet-bottom{
-  margin-top:6px;
-}
-
-.history-card .pill{
-  padding:4px 8px;
-  font-size:12px;
-}
-

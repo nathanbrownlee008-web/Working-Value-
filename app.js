@@ -380,20 +380,22 @@ function renderHistory(){
     else if(res==="lost") lost++;
     else pending++;
   });
-  // staked/profit/roi calculated for tracker (not shown in Daily History header)
+  const roi = staked>0 ? (profit/staked)*100 : 0;
 
+  
   historySummaryEl.innerHTML = `
-  <div class="history-summary">
-    <div class="history-header">
-    <div class="history-date"><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
-    <div class="history-ratio">${won}/${(won+lost+pending)||0}</div>
-  </div>
-    <div class="history-counts">
-    <span class="count-chip won">✅ Won <strong>${won}</strong></span>
-    <span class="count-chip lost">❌ Lost <strong>${lost}</strong></span>
-    <span class="count-chip pending">⏳ Pending <strong>${pending}</strong></span>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-weight:800;">${selected ? formatDayLabelLong(selected) : "No data"}</div>
+      <div style="background:rgba(255,255,255,0.06);padding:6px 10px;border-radius:999px;font-weight:800;">
+        ${won}/${won+lost || 0}
+      </div>
     </div>
-`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div class="pill-sm win">✅ Won <strong>${won}</strong></div>
+      <div class="pill-sm loss">❌ Lost <strong>${lost}</strong></div>
+      <div class="pill-sm pending">⏳ Pending <strong>${pending}</strong></div>
+    </div>
+  `;
 
   historyListEl.innerHTML = "";
   if(dayRows.length===0){
@@ -431,6 +433,8 @@ function renderHistory(){
         </div>
         <div class="bet-bottom">
           <div class="pill">Odds <strong>${odds || "-"}</strong></div>
+          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
+          <div class="pill">Profit <strong>${profitTxt}</strong></div>
         </div>
       `;
 
