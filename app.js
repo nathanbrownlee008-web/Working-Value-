@@ -15,24 +15,11 @@ const profitCard=document.getElementById("profitCard");
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
 
-function _normalizeKeyDate(raw){
-  if(!raw) return "";
-  // Accept YYYY-MM-DD or ISO strings, output YYYY-MM-DD when possible
-  const s = String(raw);
-  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
-  if(m) return m[0];
-  const d = new Date(raw);
-  if(Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0,10);
-}
-
 function makeBetKey(row){
-  // Use a stable composite key that exists in BOTH feed rows and tracker rows
   const match = (row?.match ?? "").toString().trim();
   const market = (row?.market ?? "").toString().trim();
   const odds = (row?.odds ?? "").toString().trim();
-  const date = _normalizeKeyDate(row?.bet_date || row?.match_date || row?.match_date_date || row?.created_at);
-  return `k:${match}|${market}|${odds}|${date}`;
+  return `k:${match}|${market}|${odds}`;
 }
 
 // Top navigation tabs
@@ -93,7 +80,7 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds,bet_date,match_date,match_date_date,created_at")
+      .select("match,market,odds")
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
@@ -141,8 +128,7 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-    bet_date: row.bet_date || null,
-    stake: 10,
+        stake: 10,
     result: "pending"
   };
 
@@ -155,8 +141,10 @@ async function addToTracker(btn, row){
     console.error("Insert failed:", error);
     if(btn){
       btn.disabled = false;
-      btn.textContent = 'Add';
+      btn.textContent = "Add";
     }
+    // Quick visible feedback (mobile)
+    try{ alert("Could not add bet. Check tracker table columns / RLS."); }catch(e){}
     return;
   }
 
