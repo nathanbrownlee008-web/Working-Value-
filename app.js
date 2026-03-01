@@ -439,9 +439,7 @@ function renderHistory(){
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-        </div>
+          </div>
 
         <div class="history-day-bets">
           <div class="history-table-wrap">
