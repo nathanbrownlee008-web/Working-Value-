@@ -536,7 +536,7 @@ th{text-align:left}
 }
 
 /* --- Daily History card tweaks (compact + no green strip) --- */
-.history-card{ padding-left:16px; }
+.history-card{ padding-left:14px; }
 .history-card::before{ display:none; }
 
 .history-card-top{
@@ -548,16 +548,17 @@ th{text-align:left}
 .history-card-main{ min-width:0; }
 .history-match{
   font-weight: 900;
-  font-size: 15px;
+  font-size: 14px;
   letter-spacing: 0.2px;
   line-height: 1.15;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .history-market{
   opacity: 0.72;
   line-height: 1.2;
+  font-size: 12.5px;
 }
-.history-card-bottom{ margin-top: 12px; }
+.history-card-bottom{ margin-top: 8px; }
 
 .bet-title{
   font-weight: 900;
@@ -689,7 +690,8 @@ th{text-align:left}
 }
 
 .history-card {
-  border-left: 4px solid rgba(255,255,255,0.10);
+  /* no side strip in Daily History */
+  border-left: none;
 }
 
 .history-card.win {
@@ -748,3 +750,18 @@ th{text-align:left}
   border-color:rgba(245,158,11,0.4);
   background:rgba(245,158,11,0.12);
 }
+
+/* Small utility buttons (used in Daily History collapse) */
+.btn{
+  border:1px solid rgba(255,255,255,0.12);
+  background:rgba(255,255,255,0.06);
+  color:rgba(255,255,255,0.92);
+  border-radius:12px;
+  padding:10px 14px;
+  font-weight:800;
+  cursor:pointer;
+}
+.btn:hover{ background:rgba(255,255,255,0.09); }
+.btn:active{ transform: translateY(1px); }
+.btn-secondary{ background:rgba(255,255,255,0.06); }
+.btn-sm{ padding:8px 12px; font-size:13px; border-radius:999px; }

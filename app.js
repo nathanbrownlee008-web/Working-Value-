@@ -383,11 +383,16 @@ function renderHistory(){
   const roi = staked>0 ? (profit/staked)*100 : 0;
 
   
+  // Collapsible day: remember per day key
+  window.__historyCollapsed = window.__historyCollapsed || {};
+  const isCollapsed = !!window.__historyCollapsed[selected];
+
   historySummaryEl.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;">
       <div style="font-weight:800;">${selected ? formatDayLabelLong(selected) : "No data"}</div>
-      <div style="background:rgba(255,255,255,0.06);padding:6px 10px;border-radius:999px;font-weight:800;">
-        ${won}/${won+lost || 0}
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="background:rgba(255,255,255,0.06);padding:6px 10px;border-radius:999px;font-weight:800;">${won}/${won+lost || 0}</div>
+        <button class="btn btn-secondary btn-sm" id="toggleHistoryDay">${isCollapsed ? "Show" : "Hide"}</button>
       </div>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -397,11 +402,22 @@ function renderHistory(){
     </div>
   `;
 
+  const toggleBtn = document.getElementById("toggleHistoryDay");
+  if(toggleBtn){
+    toggleBtn.onclick = ()=>{
+      window.__historyCollapsed[selected] = !window.__historyCollapsed[selected];
+      renderHistory();
+    };
+  }
+
   historyListEl.innerHTML = "";
   if(dayRows.length===0){
     historyListEl.innerHTML = `<div class="empty">No bets for this day.</div>`;
     return;
   }
+
+  // If collapsed, keep the summary visible but hide the cards
+  if(isCollapsed) return;
 
   dayRows
     .slice()
