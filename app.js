@@ -352,6 +352,12 @@ function formatDayLabelLong(dayKey){
 }
 
 function renderHistory(){
+  const iconFor = (res)=>{
+    if(res==='won') return '✅';
+    if(res==='lost') return '❌';
+    return '⏳';
+  };
+
   if(!historySummaryEl || !historyListEl) return;
 
   const rows = Array.isArray(trackerRowsCache) ? trackerRowsCache : [];
@@ -374,30 +380,20 @@ function renderHistory(){
     return d.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
   };
 
-  const iconFor = (r)=>{
-    if(r==="won") return "✅";
-    if(r==="lost") return "❌";
-    return "⏳";
-  };
-
   const renderBet = (b)=>{
     const result = (b.result || "pending").toLowerCase();
     const cls = (result==="won"||result==="lost") ? result : "pending";
     const match = (b.match || "").toString().trim() || "—";
-    const market = (b.market || "").toString().trim() || "";
-    const odds = (b.odds ?? "").toString();
+    const market = (b.market || "").toString().trim() || "—";
+    const odds = (b.odds ?? "").toString().trim() || "—";
 
     return `
-      <div class="history-card ${cls}">
-        <div class="history-content">
-          <div class="history-title">${escapeHtml(match)}</div>
-          ${market ? `<div class="history-market">${escapeHtml(market)}</div>` : ``}
-          <div class="history-odds-grid">
-            <div class="history-odds">Odds <strong>${escapeHtml(odds || "—")}</strong></div>
-            <div class="result-badge ${cls}" aria-label="${cls}">${iconFor(cls)}</div>
-          </div>
-        </div>
-      </div>
+      <tr class="history-row ${cls}">
+        <td class="hcell-match">${escapeHtml(match)}</td>
+        <td class="hcell-market">${escapeHtml(market)}</td>
+        <td class="hcell-odds">${escapeHtml(odds)}</td>
+        <td class="hcell-result" aria-label="${cls}">${iconFor(cls)}</td>
+      </tr>
     `;
   };
 
@@ -421,18 +417,33 @@ function renderHistory(){
           <div class="history-day-top">
             <div class="history-day-title">${fmtDay(dayKey)}</div>
             <div class="history-day-actions">
-              <button class="history-toggle" data-day="${dayKey}">${collapsed ? "Show" : "Hide"}</button>
               <div class="history-day-ratio">${ratio}</div>
+              <button class="history-toggle" data-day="${dayKey}">${collapsed ? "Show" : "Hide"}</button>
             </div>
           </div>
           <div class="history-day-chips">
-            <div class="history-chip won">✅ Won ${won}</div>
-            <div class="history-chip lost">❌ Lost ${lost}</div>
-            <div class="history-chip pending">⏳ Pending ${pending}</div>
+            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
+            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
           </div>
         </div>
+
         <div class="history-day-bets">
-          ${bets.map(renderBet).join("")}
+          <div class="history-table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Match</th>
+                  <th>Market</th>
+                  <th class="th-odds">Odds</th>
+                  <th class="th-res"></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bets.map(renderBet).join("")}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     `;
