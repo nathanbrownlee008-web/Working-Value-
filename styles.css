@@ -562,12 +562,19 @@ th{text-align:left}
 
 /* Make WON/LOST badge a touch smaller in Daily History */
 .history-card .result-badge{
-  font-size: 12px;
+  font-size: 11px;
   padding: 6px 10px;
+  min-height: 28px;
+}
+
+.history-card .result-badge .emoji{
+  font-size: 14px;
+  line-height: 1;
 }
 
 /* Day groups (collapsible sections) */
-.history-day{ margin-top: 14px; }
+.history-day{ margin: 0 0 22px 0; }
+.history-day-header{ padding: 14px 14px; margin-bottom: 12px; }
 .history-day .history-day-list{ margin-top: 10px; }
 .history-day.collapsed .history-day-list{ display:none; }
 

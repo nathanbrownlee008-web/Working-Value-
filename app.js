@@ -397,6 +397,10 @@ function renderHistory(){
 
   dayKeys.forEach(dayKey=>{
     const dayRows = grouped.get(dayKey) || [];
+
+    // Default each day to collapsed (user can expand by tapping the day header)
+    if(!(dayKey in window.__historyCollapsed)) window.__historyCollapsed[dayKey] = true;
+
     let won=0,lost=0,pending=0;
     dayRows.forEach(r=>{
       const res = String(r.result || "pending").toLowerCase();
