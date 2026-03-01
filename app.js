@@ -367,22 +367,47 @@ function renderHistory(){
   });
   const dayKeys = Array.from(grouped.keys()).sort().reverse();
 
-  // Dropdown becomes "jump to day" (history renders all days stacked)
-  const prev = historyDaySelectEl.value;
-  historyDaySelectEl.innerHTML = "";
-  const optAll = document.createElement("option");
-  optAll.value = "__all__";
-  optAll.textContent = "All days";
-  historyDaySelectEl.appendChild(optAll);
-  dayKeys.forEach(k=>{
-    const opt=document.createElement("option");
-    opt.value = k;
-    opt.textContent = formatDayLabelLong(k);
-    historyDaySelectEl.appendChild(opt);
-  });
-  historyDaySelectEl.value = (prev && (prev === "__all__" || dayKeys.includes(prev))) ? prev : "__all__";
+    // Optional dropdown/summary controls (removed in some builds)
+  if (historyDaySelectEl) {
+    // Dropdown becomes "jump to day" (history renders all days stacked)
+    const prev = historyDaySelectEl.value;
+    historyDaySelectEl.innerHTML = "";
+    const optAll = document.createElement("option");
+    optAll.value = "all";
+    optAll.textContent = "All days";
+    historyDaySelectEl.appendChild(optAll);
 
-  // We no longer use the single summary at the top.
+    dayKeys.forEach((k) => {
+      const o = document.createElement("option");
+      o.value = k;
+      o.textContent = formatDayLabel(k);
+      historyDaySelectEl.appendChild(o);
+    });
+
+    // Keep selection if still valid
+    if (prev && [...historyDaySelectEl.options].some((o) => o.value === prev)) {
+      historyDaySelectEl.value = prev;
+    } else {
+      historyDaySelectEl.value = "all";
+    }
+  }
+
+  // Summary chips (optional)
+  if (historySummaryEl) {
+    // Show quick overall summary when dropdown exists; otherwise per-day cards already show it.
+    if (historyDaySelectEl && historyDaySelectEl.value !== "all") {
+      const k = historyDaySelectEl.value;
+      const rows = grouped[k] || [];
+      const won = rows.filter((r) => r.result === "won").length;
+      const lost = rows.filter((r) => r.result === "lost").length;
+      const pending = rows.filter((r) => r.result === "pending").length;
+      historySummaryEl.innerHTML = renderHistorySummary(won, lost, pending, won + lost + pending);
+    } else {
+      historySummaryEl.innerHTML = "";
+    }
+  }
+
+// We no longer use the single summary at the top.
   historySummaryEl.innerHTML = "";
   historySummaryEl.style.display = "none";
 
