@@ -15,11 +15,24 @@ const profitCard=document.getElementById("profitCard");
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
 
+function _normalizeKeyDate(raw){
+  if(!raw) return "";
+  // Accept YYYY-MM-DD or ISO strings, output YYYY-MM-DD when possible
+  const s = String(raw);
+  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
+  if(m) return m[0];
+  const d = new Date(raw);
+  if(Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0,10);
+}
+
 function makeBetKey(row){
+  // Use a stable composite key that exists in BOTH feed rows and tracker rows
   const match = (row?.match ?? "").toString().trim();
   const market = (row?.market ?? "").toString().trim();
   const odds = (row?.odds ?? "").toString().trim();
-  return `k:${match}|${market}|${odds}`;
+  const date = _normalizeKeyDate(row?.bet_date || row?.match_date || row?.match_date_date || row?.created_at);
+  return `k:${match}|${market}|${odds}|${date}`;
 }
 
 // Top navigation tabs
@@ -80,7 +93,7 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds")
+      .select("match,market,odds,bet_date,match_date,match_date_date,created_at")
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
@@ -128,7 +141,8 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-        stake: 10,
+    bet_date: row.bet_date || null,
+    stake: 10,
     result: "pending"
   };
 
@@ -141,14 +155,15 @@ async function addToTracker(btn, row){
     console.error("Insert failed:", error);
     if(btn){
       btn.disabled = false;
-      btn.textContent = "Add";
+      btn.textContent = 'Add';
     }
-    // Quick visible feedback (mobile)
-    try{ alert("Could not add bet. Check tracker table columns / RLS."); }catch(e){}
     return;
   }
 
-  addedKeys.add(key);
+  // Use server-returned row for the key (so refresh matches even if DB normalizes dates)
+  const serverRow = (Array.isArray(data) && data.length) ? data[0] : null;
+  const finalKey = serverRow ? makeBetKey(serverRow) : key;
+  addedKeys.add(finalKey);
   if(btn){
     btn.textContent = 'Added';
     btn.classList.add('added', 'flash');
@@ -408,7 +423,6 @@ function renderHistory(){
 
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
-    const winrate = settled ? Math.round((won / settled) * 100) : 0;
 
     const collapsed = !window.__historyOpen[dayKey];
 
@@ -424,14 +438,15 @@ function renderHistory(){
           </div>
 
           <div class="daily-toggle-right">
-            <div class="history-ratio-wrap">
-              <span class="history-day-ratio">${ratio}</span>
-              <span class="history-winrate ${winrate>=70 ? "wr-hot" : winrate>=55 ? "wr-good" : winrate>=40 ? "wr-mid" : "wr-bad"}">${winrate>=70 ? "🔥 " : ""}Winrate ${winrate}%</span>
-            </div>
+            <span class="history-day-ratio">${ratio}</span>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-          <div class="history-day-bets">
+          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+        </div>
+
+        <div class="history-day-bets">
           <div class="history-table-wrap">
             <table class="history-table">
               <thead>
