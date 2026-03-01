@@ -544,6 +544,7 @@ th{text-align:left}
   align-items:flex-start;
   justify-content:space-between;
   gap:12px;
+  padding-top: 3px;
 }
 .history-card-main{ min-width:0; }
 .history-match{
@@ -558,7 +559,7 @@ th{text-align:left}
   line-height: 1.2;
   font-size: 12.5px;
 }
-.history-card-bottom{ margin-top: 8px; }
+.history-card-bottom{ margin-top: 6px; }
 
 /* Make WON/LOST badge a touch smaller in Daily History */
 .history-card .result-badge{
@@ -710,9 +711,47 @@ th{text-align:left}
   color: rgba(255,255,255,0.85);
 }
 
+/* Daily History header layout */
+.history-summary-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.history-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+
+.history-date{
+  font-weight:700;
+  letter-spacing:0.2px;
+  white-space:nowrap;
+}
+
+.history-ratio{
+  flex:0 0 auto;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.9);
+  font-weight:700;
+}
+
 .history-card {
   /* no side strip in Daily History */
   border-left: none;
+}
+
+/* Slightly roomier padding so text doesn't touch edges */
+.history-card.card{
+  padding-top: 12px;
+  padding-bottom: 10px;
 }
 
 .history-card.win {
@@ -735,6 +774,17 @@ th{text-align:left}
   background: rgba(255,255,255,0.04);
   color: rgba(255,255,255,0.85);
   font-weight: 600;
+}
+
+/* Smaller badge inside History cards */
+.history-card .result-badge{
+  padding: 6px 10px;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.history-card .result-badge .emoji{
+  font-size: 14px;
 }
 
 .result-badge.win {

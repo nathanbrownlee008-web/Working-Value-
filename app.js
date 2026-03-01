@@ -419,11 +419,11 @@ function renderHistory(){
     wrap.innerHTML = `
       <div class="history-summary">
         <div class="history-summary-top">
-          <div class="history-date">${formatDayLabelLong(dayKey)}</div>
-          <div class="history-summary-actions">
-            <div class="history-ratio">${ratio}</div>
+          <div class="history-left">
+            <div class="history-date">${formatDayLabelLong(dayKey)}</div>
             <button class="btn btn-secondary btn-sm history-toggle" type="button">${collapsed ? "Show" : "Hide"}</button>
           </div>
+          <div class="history-ratio">${ratio}</div>
         </div>
         <div class="history-chips compact">
           <div class="pill-sm win">✅ Won <strong>${won}</strong></div>
