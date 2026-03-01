@@ -1107,55 +1107,69 @@ th{text-align:left}
 .history-day.collapsed .history-day-bets { display: none; }
 
 
-/* ---- Daily History header fit (mobile-friendly, no overlap) ---- */
+/* ---- Daily History header: inline chips, neat fit ---- */
 .daily-toggle.history-toggle{
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
   gap: 10px;
 }
 
 .daily-toggle-left{
-  flex: 0 0 auto;
-  min-width: 120px;
-  max-width: 44%;
+  display:flex;
+  align-items:center;
+  gap:10px;
   white-space: nowrap;
-  overflow: hidden;
+}
+
+.daily-toggle-left span{
+  overflow:hidden;
   text-overflow: ellipsis;
+  max-width: 160px;
+  display:inline-block;
+  vertical-align: bottom;
 }
 
 .daily-toggle-center{
-  flex: 1 1 auto;
   min-width: 0;
   display:flex;
   justify-content:center;
   gap:10px;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  overflow: hidden;
 }
-.daily-toggle-center::-webkit-scrollbar{ display:none; }
 
-.daily-toggle-right{
-  flex: 0 0 auto;
+.daily-toggle-center .history-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 13px;
   white-space: nowrap;
 }
 
-/* Compact header chips so they don't collide with date */
-.daily-toggle-center .history-chip{
-  padding: 7px 10px;
-  font-size: 12px;
-  gap: 6px;
-}
 .daily-toggle-center .history-chip span{
-  display:none; /* keep icon + count only */
-}
-.daily-toggle-center .history-chip strong{
-  font-size: 13px;
+  opacity: 0.85;
 }
 
+.daily-toggle-center .history-chip strong{
+  font-weight: 900;
+}
+
+.daily-toggle-right{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  white-space: nowrap;
+}
+
+/* Small phones: keep inline, slightly tighter text */
 @media (max-width: 420px){
-  .daily-toggle-left{ min-width: 104px; max-width: 42%; }
-  .history-day-ratio{ padding: 7px 10px; font-size: 13px; }
-  .daily-toggle-center{ gap: 8px; }
-  .daily-toggle-center .history-chip{ padding: 6px 9px; }
+  .daily-toggle-left span{ max-width: 120px; }
+  .daily-toggle-center{ justify-content:flex-start; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .daily-toggle-center::-webkit-scrollbar{ display:none; }
+  .daily-toggle-center .history-chip{ padding: 6px 9px; font-size: 12px; gap:6px; }
+  .daily-toggle-center .history-chip span{ display:none; } /* hide labels only on very small screens */
 }
 
