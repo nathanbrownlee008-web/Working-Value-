@@ -455,28 +455,31 @@ function renderHistory(){
 
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
+    const winrate = settled ? Math.round((won / settled) * 100) : 0;
 
     const collapsed = !window.__historyOpen[dayKey];
 
     html += `
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
-        <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
-          <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
-
-          <div class="daily-toggle-center">
-            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
-            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+        <button class="monthly-toggle daily-toggle history-toggle history-header-v2" data-day="${dayKey}" aria-expanded="${collapsed ? "false" : "true"}">
+          <div class="dh-left">
+            <span class="date-emoji">📅</span>
+            <span class="history-day-label">${fmtDay(dayKey)}</span>
           </div>
 
-          <div class="daily-toggle-right">
-            <span class="history-day-ratio">${ratio}</span>
-            <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
+          <div class="dh-right">
+            <div class="dh-ratio">${ratio}</div>
+            <div class="dh-winrate ${winrate>=70 ? "wr-hot" : winrate>=55 ? "wr-good" : winrate>=40 ? "wr-mid" : "wr-bad"}">${winrate>=70 ? "🔥 " : ""}Winrate ${winrate}%</div>
+          </div>
+
+          <div class="dh-chev">${collapsed ? "▼" : "▲"}</div>
+
+          <div class="dh-icons" aria-label="Day summary">
+            <span class="dh-iconpill won"><span class="ico">✅</span><span class="num">${won}</span></span>
+            <span class="dh-iconpill lost"><span class="ico">❌</span><span class="num">${lost}</span></span>
+            <span class="dh-iconpill pending"><span class="ico">⏳</span><span class="num">${pending}</span></span>
           </div>
         </button>
-          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-        </div>
 
         <div class="history-day-bets">
           <div class="history-table-wrap">
