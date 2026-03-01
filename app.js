@@ -478,13 +478,15 @@ function renderHistory(){
         const odds = Number(r.odds)||0;
         // Compact: match, market, odds on the left; icon-only result badge on the right.
         card.innerHTML = `
-          <div class="history-card-grid">
-            <div class="history-card-main">
-              <div class="history-match">${escapeHtml(r.match || "")}</div>
-              <div class="history-market">${escapeHtml(r.market || "")}</div>
-              <div class="history-odds">Odds <strong>${odds || "-"}</strong></div>
+          <div class="history-card-main">
+            <div class="history-match">${escapeHtml(r.match || "")}</div>
+            <div class="history-market">${escapeHtml(r.market || "")}</div>
+            <div class="history-odds">Odds <strong>${odds || "-"}</strong></div>
+            <div class="history-badge-row">
+              <div class="result-badge ${cls}" aria-label="${res}">
+                <span class="emoji">${icon}</span>
+              </div>
             </div>
-            <div class="result-badge ${cls}" aria-label="${res}"><span class="emoji">${icon}</span></div>
           </div>
         `;
         list.appendChild(card);
