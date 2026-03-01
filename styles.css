@@ -546,13 +546,21 @@ th{text-align:left}
   gap:12px;
   padding-top: 3px;
 }
+
+/* Grid wrapper used by history bet cards */
+.history-card-grid{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
 .history-card-main{ min-width:0; }
 .history-match{
   font-weight: 900;
   font-size: 14px;
   letter-spacing: 0.2px;
   line-height: 1.15;
-  margin-bottom: 4px;
+  margin-bottom: 6px; /* pushes market down slightly */
 }
 .history-market{
   opacity: 0.72;
@@ -561,15 +569,25 @@ th{text-align:left}
 }
 .history-card-bottom{ margin-top: 6px; }
 
-/* Make WON/LOST badge a touch smaller in Daily History */
+.history-odds{
+  margin-top: 6px; /* pulls odds up */
+  opacity: 0.9;
+  font-size: 12.5px;
+}
+
+/* Icon-only result badge (no WON/LOST text) */
 .history-card .result-badge{
-  font-size: 11px;
-  padding: 6px 10px;
-  min-height: 28px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 10px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 999px;
 }
 
 .history-card .result-badge .emoji{
-  font-size: 14px;
+  font-size: 18px;
   line-height: 1;
 }
 
