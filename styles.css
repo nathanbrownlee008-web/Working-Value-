@@ -664,6 +664,45 @@ th{text-align:left}
   color: rgba(255,255,255,0.85);
 }
 
+/* Daily History header (compact: ratio + counts only) */
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.history-ratio {
+  font-weight: 800;
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(0,0,0,0.25);
+}
+
+.history-counts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+}
+
+.count-chip.won { border-color: rgba(0, 200, 120, 0.35); }
+.count-chip.lost { border-color: rgba(255, 70, 70, 0.35); }
+.count-chip.pending { border-color: rgba(255, 200, 70, 0.35); }
+
 .history-card {
   border-left: 4px solid rgba(255,255,255,0.10);
 }
