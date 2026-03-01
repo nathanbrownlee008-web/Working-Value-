@@ -15,24 +15,14 @@ const profitCard=document.getElementById("profitCard");
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
 
-function _normalizeKeyDate(raw){
-  if(!raw) return "";
-  // Accept YYYY-MM-DD or ISO strings, output YYYY-MM-DD when possible
-  const s = String(raw);
-  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
-  if(m) return m[0];
-  const d = new Date(raw);
-  if(Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0,10);
-}
-
 function makeBetKey(row){
-  // Use a stable composite key that exists in BOTH feed rows and tracker rows
-  const match = (row?.match ?? "").toString().trim();
-  const market = (row?.market ?? "").toString().trim();
-  const odds = (row?.odds ?? "").toString().trim();
-  const date = _normalizeKeyDate(row?.bet_date || row?.match_date || row?.match_date_date || row?.created_at);
-  return `k:${match}|${market}|${odds}|${date}`;
+  // Prefer stable IDs if present
+  if(row && row.id != null) return `id:${row.id}`;
+  const m = row?.match ?? '';
+  const mk = row?.market ?? '';
+  const o = row?.odds ?? '';
+  const d = row?.bet_date ?? row?.match_date ?? row?.created_at ?? '';
+  return `k:${m}|${mk}|${o}|${d}`;
 }
 
 // Top navigation tabs
@@ -48,9 +38,8 @@ if(historyListEl){
     const dayKey = btn.dataset.day;
     if(!dayKey) return;
     // Daily History accordion: default collapsed, store open state per day.
-    window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
+    window.__historyOpen = window.__historyOpen || {};
     window.__historyOpen[dayKey] = !window.__historyOpen[dayKey];
-    localStorage.setItem('history_open', JSON.stringify(window.__historyOpen));
     renderHistory();
   });
 }
@@ -93,7 +82,7 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds,bet_date,match_date,match_date_date,created_at")
+      .select("match,market,odds")
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
@@ -141,7 +130,6 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-    bet_date: row.bet_date || null,
     stake: 10,
     result: "pending"
   };
@@ -375,7 +363,7 @@ function renderHistory(){
   const rows = Array.isArray(trackerRowsCache) ? trackerRowsCache : [];
   const groups = {};
   for(const b of rows){
-    const dayKey = dayKeyFromRow(b);
+    const dayKey = (b.created_at || "").slice(0,10);
     if(!dayKey) continue;
     (groups[dayKey] ||= []).push(b);
   }
@@ -383,7 +371,7 @@ function renderHistory(){
   const dayKeys = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
   historySummaryEl.innerHTML = "";
 
-  window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
+  window.__historyOpen = window.__historyOpen || {};
 
   const fmtDay = (dayKey)=>{
     const d = new Date(dayKey + "T00:00:00");
@@ -427,19 +415,17 @@ function renderHistory(){
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
         <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
           <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
-
-          <div class="daily-toggle-center">
-            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
-            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-          </div>
-
           <div class="daily-toggle-right">
             <span class="history-day-ratio">${ratio}</span>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-          </div>
+
+        <div class="history-day-chips day-stats">
+          <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
+          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+        </div>
 
         <div class="history-day-bets">
           <div class="history-table-wrap">
@@ -530,10 +516,6 @@ const {data}=await client.from("bet_tracker").select("*").order("created_at",{as
 const rows = data || [];
 trackerRowsCache = rows;
 trackerAllRows = rows;
-
-// Keep Value Bets \"Added\" state synced with tracker rows
-addedKeys.clear();
-rows.forEach(r => addedKeys.add(makeBetKey(r)));
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);

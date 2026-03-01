@@ -1105,3 +1105,57 @@ th{text-align:left}
 .history-row.pending { box-shadow: inset 3px 0 0 rgba(214, 170, 70, 0.55); }
 
 .history-day.collapsed .history-day-bets { display: none; }
+
+
+/* ---- Daily History header fit (mobile-friendly, no overlap) ---- */
+.daily-toggle.history-toggle{
+  gap: 10px;
+}
+
+.daily-toggle-left{
+  flex: 0 0 auto;
+  min-width: 120px;
+  max-width: 44%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.daily-toggle-center{
+  flex: 1 1 auto;
+  min-width: 0;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.daily-toggle-center::-webkit-scrollbar{ display:none; }
+
+.daily-toggle-right{
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Compact header chips so they don't collide with date */
+.daily-toggle-center .history-chip{
+  padding: 7px 10px;
+  font-size: 12px;
+  gap: 6px;
+}
+.daily-toggle-center .history-chip span{
+  display:none; /* keep icon + count only */
+}
+.daily-toggle-center .history-chip strong{
+  font-size: 13px;
+}
+
+@media (max-width: 420px){
+  .daily-toggle-left{ min-width: 104px; max-width: 42%; }
+  .history-day-ratio{ padding: 7px 10px; font-size: 13px; }
+  .daily-toggle-center{ gap: 8px; }
+  .daily-toggle-center .history-chip{ padding: 6px 9px; }
+}
+
