@@ -60,15 +60,7 @@ function switchTab(tab){
 }
 
 if(historyDaySelectEl){
-  // Dropdown acts as a "jump to day" control (we still show all days stacked).
-  historyDaySelectEl.addEventListener("change", ()=>{
-    const v = historyDaySelectEl.value;
-    renderHistory();
-    if(v && v !== "__all__"){
-      const el = document.getElementById(`history-day-${v}`);
-      if(el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  });
+  historyDaySelectEl.addEventListener("change", ()=>renderHistory());
 }
 
 if(historyRefreshEl){
@@ -356,149 +348,91 @@ function formatDayLabelLong(dayKey){
 }
 
 function renderHistory(){
-  const rows = (trackerRowsCache || []).filter(r=>r.result && r.result !== "");
+  if(!historySectionEl || !historyDaySelectEl || !historyListEl || !historySummaryEl) return;
 
-  // Group by day
-  const grouped = new Map();
-  rows.forEach(r=>{
-    const k = dayKeyFromRow(r);
-    if(!grouped.has(k)) grouped.set(k, []);
-    grouped.get(k).push(r);
+  const rows = trackerRowsCache || [];
+  const daySet = new Set(rows.map(dayKeyFromRow).filter(Boolean));
+  const days = Array.from(daySet).sort((a,b)=>b.localeCompare(a));
+
+  const prev = historyDaySelectEl.value;
+  historyDaySelectEl.innerHTML = "";
+  days.forEach(dk=>{
+    const opt=document.createElement("option");
+    opt.value=dk;
+    opt.textContent=formatDayLabelLong(dk);
+    historyDaySelectEl.appendChild(opt);
   });
-  const dayKeys = Array.from(grouped.keys()).sort().reverse();
 
-    // Optional dropdown/summary controls (removed in some builds)
-  if (historyDaySelectEl) {
-    // Dropdown becomes "jump to day" (history renders all days stacked)
-    const prev = historyDaySelectEl.value;
-    historyDaySelectEl.innerHTML = "";
-    const optAll = document.createElement("option");
-    optAll.value = "all";
-    optAll.textContent = "All days";
-    historyDaySelectEl.appendChild(optAll);
+  const selected = (prev && days.includes(prev)) ? prev : (days[0] || "");
+  if(selected) historyDaySelectEl.value = selected;
 
-    dayKeys.forEach((k) => {
-      const o = document.createElement("option");
-      o.value = k;
-      o.textContent = formatDayLabel(k);
-      historyDaySelectEl.appendChild(o);
-    });
+  const dayRows = selected ? rows.filter(r=>dayKeyFromRow(r)===selected) : [];
 
-    // Keep selection if still valid
-    if (prev && [...historyDaySelectEl.options].some((o) => o.value === prev)) {
-      historyDaySelectEl.value = prev;
-    } else {
-      historyDaySelectEl.value = "all";
-    }
-  }
+  let won=0,lost=0,pending=0;
+  let staked=0, profit=0;
+  dayRows.forEach(r=>{
+    const res = String(r.result || "pending").toLowerCase();
+    const stake = Number(r.stake)||0;
+    const p = Number(r.profit)||0;
+    staked += stake;
+    profit += p;
+    if(res==="won") won++;
+    else if(res==="lost") lost++;
+    else pending++;
+  });
+  const roi = staked>0 ? (profit/staked)*100 : 0;
 
-  // Summary chips (optional)
-  if (historySummaryEl) {
-    // Show quick overall summary when dropdown exists; otherwise per-day cards already show it.
-    if (historyDaySelectEl && historyDaySelectEl.value !== "all") {
-      const k = historyDaySelectEl.value;
-      const rows = grouped[k] || [];
-      const won = rows.filter((r) => r.result === "won").length;
-      const lost = rows.filter((r) => r.result === "lost").length;
-      const pending = rows.filter((r) => r.result === "pending").length;
-      historySummaryEl.innerHTML = renderHistorySummary(won, lost, pending, won + lost + pending);
-    } else {
-      historySummaryEl.innerHTML = "";
-    }
-  }
-
-// We no longer use the single summary at the top.
-  historySummaryEl.innerHTML = "";
-  historySummaryEl.style.display = "none";
-
-  // Collapsible per day key
-  window.__historyCollapsed = window.__historyCollapsed || {};
+  historySummaryEl.innerHTML = `
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
+      <div>Won: <strong>${won}</strong> &nbsp; Lost: <strong>${lost}</strong> &nbsp; Pending: <strong>${pending}</strong></div>
+      <div>Staked: <strong>£${staked.toFixed(2)}</strong> &nbsp; Profit: <strong>£${profit.toFixed(2)}</strong> &nbsp; ROI: <strong>${roi.toFixed(1)}%</strong></div>
+    </div>
+  `;
 
   historyListEl.innerHTML = "";
-  if(dayKeys.length===0){
-    historyListEl.innerHTML = `<div class="empty">No settled bets yet.</div>`;
+  if(dayRows.length===0){
+    historyListEl.innerHTML = `<div class="empty">No bets for this day.</div>`;
     return;
   }
 
-  dayKeys.forEach(dayKey=>{
-    const dayRows = grouped.get(dayKey) || [];
-
-    // Default each day to collapsed (user can expand by tapping the day header)
-    if(!(dayKey in window.__historyCollapsed)) window.__historyCollapsed[dayKey] = true;
-
-    let won=0,lost=0,pending=0;
-    dayRows.forEach(r=>{
+  dayRows
+    .slice()
+    .sort((a,b)=>{
+      const da = new Date(a.bet_date || a.created_at || 0).getTime();
+      const db = new Date(b.bet_date || b.created_at || 0).getTime();
+      return db - da;
+    })
+    .forEach(r=>{
       const res = String(r.result || "pending").toLowerCase();
-      if(res==="won") won++;
-      else if(res==="lost") lost++;
-      else pending++;
+      const cls = res==="won" ? "win" : (res==="lost" ? "loss" : "pending");
+      const icon = res==="won" ? "✅" : (res==="lost" ? "❌" : "⏳");
+
+      const card=document.createElement("div");
+      card.className = `bet-card history-card ${cls}`;
+
+      const stake = Number(r.stake)||0;
+      const odds = Number(r.odds)||0;
+      const p = Number(r.profit)||0;
+      const profitTxt = (p>=0?"£":"-£") + Math.abs(p).toFixed(2);
+
+      card.innerHTML = `
+        <div class="bet-top">
+          <div>
+            <div class="bet-match">${escapeHtml(r.match || "")}</div>
+            <div class="bet-market">${escapeHtml(r.market || "")}</div>
+          </div>
+          <div class="result-badge ${cls}">${icon} ${res.toUpperCase()}</div>
+        </div>
+        <div class="bet-bottom">
+          <div class="pill">Odds <strong>${odds || "-"}</strong></div>
+          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
+          <div class="pill">Profit <strong>${profitTxt}</strong></div>
+        </div>
+      `;
+
+      historyListEl.appendChild(card);
     });
-    const ratio = `${won}/${won+lost || 0}`;
-
-    const wrap = document.createElement("div");
-    wrap.className = "history-day";
-    wrap.id = `history-day-${dayKey}`;
-    const collapsed = !!window.__historyCollapsed[dayKey];
-    if(collapsed) wrap.classList.add("collapsed");
-
-    wrap.innerHTML = `
-      <div class="history-summary">
-        <div class="history-summary-top">
-          <div class="history-left">
-            <div class="history-date">${formatDayLabelLong(dayKey)}</div>
-            <button class="btn btn-secondary btn-sm history-toggle" type="button">${collapsed ? "Show" : "Hide"}</button>
-          </div>
-          <div class="history-ratio">${ratio}</div>
-        </div>
-        <div class="history-chips compact">
-          <div class="pill-sm win">✅ Won <strong>${won}</strong></div>
-          <div class="pill-sm loss">❌ Lost <strong>${lost}</strong></div>
-          <div class="pill-sm pending">⏳ Pending <strong>${pending}</strong></div>
-        </div>
-      </div>
-      <div class="history-day-list"></div>
-    `;
-
-    const list = wrap.querySelector(".history-day-list");
-    dayRows
-      .slice()
-      .sort((a,b)=>{
-        const da = new Date(a.bet_date || a.created_at || 0).getTime();
-        const db = new Date(b.bet_date || b.created_at || 0).getTime();
-        return db - da;
-      })
-      .forEach(r=>{
-        const res = String(r.result || "pending").toLowerCase();
-        const cls = res==="won" ? "win" : (res==="lost" ? "loss" : "pending");
-        const icon = res==="won" ? "✅" : (res==="lost" ? "❌" : "⏳");
-
-        const card=document.createElement("div");
-        card.className = `bet-card history-card ${cls}`;
-
-        const odds = Number(r.odds)||0;
-        // Compact: match, market, odds on the left; icon-only result badge on the right.
-        card.innerHTML = `
-          <div class="history-card-main">
-            <div class="history-match">${escapeHtml(r.match || "")}</div>
-            <div class="history-market">${escapeHtml(r.market || "")}</div>
-            <div class="history-odds">Odds <strong>${odds || "-"}</strong></div>
-            <div class="history-badge-row">
-              <div class="result-badge ${cls}" aria-label="${res}">
-                <span class="emoji">${icon}</span>
-              </div>
-            </div>
-          </div>
-        `;
-        list.appendChild(card);
-      });
-
-    wrap.querySelector(".history-toggle").onclick = ()=>{
-      window.__historyCollapsed[dayKey] = !window.__historyCollapsed[dayKey];
-      renderHistory();
-    };
-
-    historyListEl.appendChild(wrap);
-  });
 }
 
 function isEndOfDay(index, labels){

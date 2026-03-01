@@ -535,60 +535,6 @@ th{text-align:left}
   opacity: 0.9;
 }
 
-/* --- Daily History card tweaks (compact + no green strip) --- */
-.history-card{ padding-left:14px; }
-.history-card::before{ display:none; }
-
-.history-card-top{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  padding-top: 3px;
-}
-
-/* Grid wrapper used by history bet cards */
-.history-odds{
-  margin-top: 6px; /* pulls odds up */
-  opacity: 0.9;
-  font-size: 12.5px;
-}
-
-.history-badge-row{
-  display:flex;
-  justify-content:flex-end;
-  margin-top:6px;
-}
-
-
-/* Icon-only result badge (no WON/LOST text) */
-.history-card .result-badge{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:8px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,0.12);
-  background:rgba(255,255,255,0.04);
-  min-width:36px;
-  min-height:36px;
-}
-
-
-.history-card .result-badge .emoji{
-  font-size:16px;
-  line-height:1;
-}
-
-/* Day groups (collapsible sections) */
-.history-day{ margin: 0 0 22px 0; }
-.history-day-header{ padding: 14px 14px; margin-bottom: 12px; }
-.history-day .history-day-list{ margin-top: 10px; }
-.history-day.collapsed .history-day-list{ display:none; }
-
-.history-summary-actions{ display:flex; align-items:center; gap:10px; }
-.history-chips.compact{ display:flex; gap:10px; flex-wrap:wrap; }
-
 .bet-title{
   font-weight: 900;
   font-size: 15px;
@@ -718,47 +664,8 @@ th{text-align:left}
   color: rgba(255,255,255,0.85);
 }
 
-/* Daily History header layout */
-.history-summary-top{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin-bottom:10px;
-}
-
-.history-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-width:0;
-}
-
-.history-date{
-  font-weight:700;
-  letter-spacing:0.2px;
-  white-space:nowrap;
-}
-
-.history-ratio{
-  flex:0 0 auto;
-  padding:6px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.04);
-  color: rgba(255,255,255,0.9);
-  font-weight:700;
-}
-
 .history-card {
-  /* no side strip in Daily History */
-  border-left: none;
-}
-
-/* Slightly roomier padding so text doesn't touch edges */
-.history-card.card{
-  padding-top: 12px;
-  padding-bottom: 10px;
+  border-left: 4px solid rgba(255,255,255,0.10);
 }
 
 .history-card.win {
@@ -783,25 +690,6 @@ th{text-align:left}
   font-weight: 600;
 }
 
-/* Smaller badge inside History cards */
-.history-card .result-badge{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:8px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,0.12);
-  background:rgba(255,255,255,0.04);
-  min-width:36px;
-  min-height:36px;
-}
-
-
-.history-card .result-badge .emoji{
-  font-size:16px;
-  line-height:1;
-}
-
 .result-badge.win {
   border-color: rgba(34, 197, 94, 0.45);
   background: rgba(34, 197, 94, 0.12);
@@ -811,43 +699,3 @@ th{text-align:left}
   border-color: rgba(239, 68, 68, 0.45);
   background: rgba(239, 68, 68, 0.12);
 }
-
-
-.pill-sm{
-  padding:6px 10px;
-  border-radius:999px;
-  font-size:13px;
-  font-weight:700;
-  border:1px solid rgba(255,255,255,0.12);
-  background:rgba(255,255,255,0.05);
-}
-
-.pill-sm.win{
-  border-color:rgba(34,197,94,0.4);
-  background:rgba(34,197,94,0.12);
-}
-
-.pill-sm.loss{
-  border-color:rgba(239,68,68,0.4);
-  background:rgba(239,68,68,0.12);
-}
-
-.pill-sm.pending{
-  border-color:rgba(245,158,11,0.4);
-  background:rgba(245,158,11,0.12);
-}
-
-/* Small utility buttons (used in Daily History collapse) */
-.btn{
-  border:1px solid rgba(255,255,255,0.12);
-  background:rgba(255,255,255,0.06);
-  color:rgba(255,255,255,0.92);
-  border-radius:12px;
-  padding:10px 14px;
-  font-weight:800;
-  cursor:pointer;
-}
-.btn:hover{ background:rgba(255,255,255,0.09); }
-.btn:active{ transform: translateY(1px); }
-.btn-secondary{ background:rgba(255,255,255,0.06); }
-.btn-sm{ padding:8px 12px; font-size:13px; border-radius:999px; }

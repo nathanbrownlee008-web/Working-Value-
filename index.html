@@ -87,7 +87,11 @@
 </section>
 
 <section id="historySection" style="display:none;">
-  <!-- History shows all days stacked; tap a day to expand/collapse. -->
+  <div class="history-controls">
+    <label for="historyDaySelect">Day</label>
+    <select id="historyDaySelect"></select>
+    <button id="historyRefresh" class="ghost-btn" type="button">Refresh</button>
+  </div>
   <div id="historySummary" class="history-summary"></div>
   <div id="historyList" class="bets-grid history-grid"></div>
 </section>
