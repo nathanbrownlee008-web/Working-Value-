@@ -460,13 +460,16 @@ function renderHistory(){
 
     html += `
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
-        <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
-          <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
+        <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}" aria-expanded="${collapsed ? "false" : "true"}">
+          <div class="daily-toggle-left">
+            <span class="date-emoji">📅</span>
+            <span class="history-day-label">${fmtDay(dayKey)}</span>
+          </div>
 
-          <div class="daily-toggle-center">
-            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
-            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+          <div class="daily-toggle-center" aria-label="Day summary">
+            <span class="history-chip chip-won"><span class="chip-ico">✅</span> Won <strong>${won}</strong></span>
+            <span class="history-chip chip-lost"><span class="chip-ico">❌</span> Lost <strong>${lost}</strong></span>
+            <span class="history-chip chip-pending"><span class="chip-ico">⏳</span> Pending <strong>${pending}</strong></span>
           </div>
 
           <div class="daily-toggle-right">
@@ -474,9 +477,6 @@ function renderHistory(){
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-        </div>
 
         <div class="history-day-bets">
           <div class="history-table-wrap">

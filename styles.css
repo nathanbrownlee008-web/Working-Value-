@@ -1128,51 +1128,50 @@ th{text-align:left}
   margin-top: 6px;
 }
 
-/* ---- Daily History header: inline chips (match picture 2) ---- */
+/* ---- Daily History header (match picture 2) ---- */
 .daily-toggle.history-toggle{
-  display:grid;
-  grid-template-columns: auto 1fr auto;
+  display:flex !important;
   align-items:center;
   gap: 12px;
   width:100%;
 }
 
-.daily-toggle-left{
+.daily-toggle.history-toggle .daily-toggle-left{
   display:flex;
   align-items:center;
   gap:10px;
   white-space:nowrap;
-  min-width:0;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 
-.daily-toggle-left .date-emoji{ font-size:18px; opacity:0.9; }
-
-.history-day-label{
-  font-weight:900;
-  font-size:18px;
+.daily-toggle.history-toggle .history-day-label{
+  font-weight: 900;
+  font-size: 18px;
   overflow:hidden;
-  text-overflow:ellipsis;
+  text-overflow: ellipsis;
   max-width: 220px;
   display:inline-block;
 }
 
-.daily-toggle-center{
-  min-width:0;
+.daily-toggle.history-toggle .daily-toggle-center{
+  flex: 1 1 auto;
+  min-width: 0;
   display:flex;
-  justify-content:flex-start;
-  gap:10px;
-  flex-wrap:nowrap;
-  overflow-x:auto;           /* keep chips inside header instead of dropping below */
+  align-items:center;
+  gap: 10px;
+  flex-wrap: nowrap;
+  overflow-x:auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width:none;
   padding-bottom: 2px;
 }
-.daily-toggle-center::-webkit-scrollbar{ display:none; }
+.daily-toggle.history-toggle .daily-toggle-center::-webkit-scrollbar{ display:none; }
 
-.daily-toggle-center .history-chip{
+.daily-toggle.history-toggle .history-chip{
   display:inline-flex;
   align-items:center;
-  gap:8px;
+  gap: 8px;
   padding: 8px 12px;
   border-radius: 999px;
   font-size: 14px;
@@ -1180,22 +1179,22 @@ th{text-align:left}
   border: 1px solid rgba(255,255,255,0.14);
   background: rgba(255,255,255,0.04);
 }
+.daily-toggle.history-toggle .history-chip strong{ font-weight: 900; }
+.daily-toggle.history-toggle .chip-ico{ font-size: 18px; line-height: 1; }
 
-.daily-toggle-center .history-chip strong{ font-weight:900; }
-.history-chip .chip-ico{ font-size:18px; line-height:1; }
+.daily-toggle.history-toggle .chip-won{ border-color: rgba(34,197,94,0.35); box-shadow: 0 0 0 1px rgba(34,197,94,0.06) inset; }
+.daily-toggle.history-toggle .chip-lost{ border-color: rgba(239,68,68,0.35); box-shadow: 0 0 0 1px rgba(239,68,68,0.06) inset; }
+.daily-toggle.history-toggle .chip-pending{ border-color: rgba(245,158,11,0.35); box-shadow: 0 0 0 1px rgba(245,158,11,0.06) inset; }
 
-.history-chip.chip-won{ border-color: rgba(34,197,94,0.35); box-shadow: 0 0 0 1px rgba(34,197,94,0.06) inset; }
-.history-chip.chip-lost{ border-color: rgba(239,68,68,0.35); box-shadow: 0 0 0 1px rgba(239,68,68,0.06) inset; }
-.history-chip.chip-pending{ border-color: rgba(245,158,11,0.35); box-shadow: 0 0 0 1px rgba(245,158,11,0.06) inset; }
-
-.daily-toggle-right{
+.daily-toggle.history-toggle .daily-toggle-right{
+  flex: 0 0 auto;
   display:flex;
   align-items:center;
-  gap:12px;
-  white-space:nowrap;
+  gap: 12px;
+  white-space: nowrap;
 }
 
-.history-day-ratio{
+.daily-toggle.history-toggle .history-day-ratio{
   font-weight: 900;
   font-size: 18px;
   padding: 10px 14px;
@@ -1206,16 +1205,12 @@ th{text-align:left}
   text-align:center;
 }
 
-.history-chevron{ opacity:0.75; font-weight:900; }
-
-/* Mobile tweaks */
 @media (max-width: 520px){
-  .history-day-label{ max-width: 200px; }
-  .daily-toggle-center .history-chip{ padding: 7px 11px; font-size: 13px; }
-  .history-day-ratio{ font-size: 17px; padding: 9px 12px; }
+  .daily-toggle.history-toggle .history-day-label{ max-width: 180px; }
+  .daily-toggle.history-toggle .history-chip{ padding: 7px 11px; font-size: 13px; }
+  .daily-toggle.history-toggle .history-day-ratio{ font-size: 17px; padding: 9px 12px; }
 }
-
 @media (max-width: 380px){
-  .history-day-label{ max-width: 160px; }
-  .daily-toggle-center .history-chip{ padding: 6px 10px; font-size: 12px; gap:6px; }
+  .daily-toggle.history-toggle .history-day-label{ max-width: 150px; }
+  .daily-toggle.history-toggle .history-chip{ padding: 6px 10px; font-size: 12px; gap: 6px; }
 }
