@@ -113,7 +113,25 @@ const feedRows = (data || []).filter(row=>{
 });
 
 betsGrid.innerHTML="";
-if(!feedRows || !feedRows.length){ betsGrid.innerHTML = `<div class="card">No value bets for today yet.</div>`; return; }
+if(!feedRows || !feedRows.length){
+    const todayKeyDbg = todayKey;
+    const future = (data || []).filter(r=>{
+      const raw = r.bet_date || r.match_date || r.created_at;
+      const k = localISODate(raw);
+      return k && k > todayKeyDbg;
+    });
+    const dates = future.map(r=>localISODate(r.bet_date || r.match_date || r.created_at)).filter(Boolean).sort();
+    const nextDate = dates.length ? dates[0] : "";
+    betsGrid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-title">No value bets for today</div>
+        <div class="empty-sub">Today: <strong>${todayKeyDbg}</strong></div>
+        <div class="empty-sub">If you added a bet, make sure it was inserted into <strong>value_bets_feed</strong> and set <strong>bet_date</strong> to today.</div>
+        ${future.length ? `<div class="empty-sub">You have <strong>${future.length}</strong> upcoming bet(s). Next bet date: <strong>${nextDate}</strong></div>` : ``}
+      </div>
+    `;
+    return;
+  }
  (feedRows || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
@@ -343,13 +361,17 @@ function fmtDayLabel(d){
 
 
 function localISODate(dt){
-  // YYYY-MM-DD in *local* time (avoids UTC date rollover issues)
+  // YYYY-MM-DD in *local* time (avoid UTC rollover + date-string parsing issues)
+  if(dt == null) return "";
+  const s = String(dt);
+  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
+  if(m) return m[0];
   const d = (dt instanceof Date) ? dt : new Date(dt);
   if(Number.isNaN(d.getTime())) return "";
   const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
+  const mo = String(d.getMonth()+1).padStart(2,"0");
   const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
+  return `${y}-${mo}-${day}`;
 }
 }
 
