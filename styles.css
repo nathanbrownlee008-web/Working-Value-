@@ -923,7 +923,18 @@ th{text-align:left}
   justify-content:space-between;
   gap:12px;
 }
+.day-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;        /* 👈 prevents Pending dropping below */
+  overflow-x: auto;         /* safety on very small screens */
+  margin-top: 10px;
+}
 
+.day-stats .chip {
+  white-space: nowrap;      /* keeps text in one line */
+}
 .history-day-actions{
   display:flex;
   align-items:center;
