@@ -461,7 +461,7 @@ function renderHistory(){
 
     html += `
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
-        <button class="monthly-toggle daily-toggle history-toggle history-header-v2" data-day="${dayKey}" aria-expanded="${collapsed ? "false" : "true"}">
+        <button class="daily-toggle history-toggle history-header-v2" data-day="${dayKey}" aria-expanded="${collapsed ? "false" : "true"}">
           <div class="dh-left">
             <span class="date-emoji">📅</span>
             <span class="history-day-label">${fmtDay(dayKey)}</span>
