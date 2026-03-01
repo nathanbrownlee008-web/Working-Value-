@@ -12,100 +12,153 @@ const lossesElem=document.getElementById("losses");
 const avgOddsElem=document.getElementById("avgOdds");
 const profitCard=document.getElementById("profitCard");
 
-tabBets.onclick=()=>switchTab(true);
-tabTracker.onclick=()=>switchTab(false);
-
-// --- Added state (prevents duplicates + survives refresh) ---
-// We treat a bet as "the same" if match+market+odds match.
-// This avoids losing the Added state after refresh when the feed row IDs differ.
+// Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
-const betKey = (row) => {
-  const m  = (row?.match  ?? '').trim();
-  const mk = (row?.market ?? '').trim();
-  const o  = (row?.odds   ?? '').toString().trim();
-  return `${m}|${mk}|${o}`;
-};
 
-function switchTab(show){
-  initChartTabs();
-betsSection.style.display=show?"block":"none";
-trackerSection.style.display=show?"none":"block";
-tabBets.classList.toggle("active",show);
-tabTracker.classList.toggle("active",!show);
+function makeBetKey(row){
+  // Prefer stable IDs if present
+  if(row && row.id != null) return `id:${row.id}`;
+  const m = row?.match ?? '';
+  const mk = row?.market ?? '';
+  const o = row?.odds ?? '';
+  const d = row?.bet_date ?? row?.match_date ?? row?.created_at ?? '';
+  return `k:${m}|${mk}|${o}|${d}`;
 }
+
+// Top navigation tabs
+const tabHistoryEl = document.getElementById("tabHistory");
+const historySectionEl = document.getElementById("historySection");
+const historyDaySelectEl = document.getElementById("historyDaySelect");
+const historyListEl = document.getElementById("historyList");
+
+if(historyListEl){
+  historyListEl.addEventListener("click",(e)=>{
+    const btn = e.target.closest(".history-toggle");
+    if(!btn) return;
+    const dayKey = btn.dataset.day;
+    if(!dayKey) return;
+    // Daily History accordion: default collapsed, store open state per day.
+    window.__historyOpen = window.__historyOpen || {};
+    window.__historyOpen[dayKey] = !window.__historyOpen[dayKey];
+    renderHistory();
+  });
+}
+const historySummaryEl = document.getElementById("historySummary");
+const historyRefreshEl = document.getElementById("historyRefresh");
+
+let currentTopTab = "bets"; // 'bets' | 'tracker' | 'history'
+let trackerRowsCache = [];
+
+tabBets.onclick=()=>switchTab("bets");
+tabTracker.onclick=()=>switchTab("tracker");
+if(tabHistoryEl) tabHistoryEl.onclick=()=>switchTab("history");
+
+function switchTab(tab){
+  currentTopTab = tab;
+  initChartTabs();
+
+  betsSection.style.display=(tab==="bets")?"block":"none";
+  trackerSection.style.display=(tab==="tracker")?"block":"none";
+  if(historySectionEl) historySectionEl.style.display=(tab==="history")?"block":"none";
+
+  tabBets.classList.toggle("active",tab==="bets");
+  tabTracker.classList.toggle("active",tab==="tracker");
+  if(tabHistoryEl) tabHistoryEl.classList.toggle("active",tab==="history");
+
+  if(tab!=="bets"){
+    loadTracker().then(()=>{
+      if(tab==="history") renderHistory();
+    });
+  }
+}
+
+
 
 async function loadBets(){
-  // 1) Load tracker rows to know what's already added (so it persists on refresh)
+  // Rebuild "Added" state from tracker every time we render the feed.
+  // This ensures that if a bet is deleted from the tracker, the feed button returns to "Add".
   addedKeys.clear();
-  const { data: trackerRows } = await client
-    .from("bet_tracker")
-    .select("match,market,odds");
-  (trackerRows || []).forEach(r => addedKeys.add(betKey(r)));
+  // Preload tracker rows so already-added bets render as "Added"
+  try{
+    const { data: tdata, error: terr } = await client
+      .from("bet_tracker")
+      .select("match,market,odds")
+      .limit(1000);
+    if(!terr && Array.isArray(tdata)){
+      tdata.forEach(r => addedKeys.add(makeBetKey(r)));
+    }
+  }catch(e){
+    // Ignore preload failures
+  }
 
-  // 2) Load feed
-  const {data}=await client.from("value_bets").select("*").order("bet_date",{ascending:false});
-  betsGrid.innerHTML="";
-  if(!data) return;
-
-  // Keep the rows around so we can reference them in click handlers
-  window.__valueBetsRows = data;
-
-  data.forEach((row, idx)=>{
-    const key = betKey(row);
-    const isAdded = addedKeys.has(key);
-    betsGrid.innerHTML += `
-      <div class="card">
-        <h3>${row.match}</h3>
-        <p>${row.market} • ${row.bet_date}</p>
-        <p>Odds: ${row.odds}</p>
-        <button class="add-btn" data-idx="${idx}" ${isAdded ? 'disabled' : ''}>${isAdded ? 'Added' : 'Add'}</button>
-      </div>`;
-  });
-
-  // Bind click handlers once rendered
-  betsGrid.querySelectorAll('.add-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const i = Number(btn.dataset.idx);
-      const row = window.__valueBetsRows?.[i];
-      if(!row) return;
-      const key = betKey(row);
-      if(addedKeys.has(key)) {
-        btn.textContent = 'Added';
-        btn.disabled = true;
-        return;
-      }
-
-      btn.disabled = true;
-      const ok = await addToTracker(row);
-      if(ok) {
-        addedKeys.add(key);
-        btn.textContent = 'Added';
-      } else {
-        // revert if insert failed
-        btn.disabled = false;
-      }
-    });
-  });
+const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+betsGrid.innerHTML="";
+if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
+ (data || []).forEach(row=>{
+  const key = makeBetKey(row);
+  const isAdded = addedKeys.has(key);
+betsGrid.innerHTML+=`
+<div class="card bet-card ${row.high_value ? 'bet-card--hv' : ''}">
+  <h3 class="bet-title">${row.match}</h3>
+  <div class="bet-meta">
+    <span class="bet-market">${row.market}</span>
+    <span class="bet-date">${row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
+  </div>
+  <div class="bet-stats">
+    <span class="stat-chip"><span class="stat-chip__k">Value</span><span class="stat-chip__v">${(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value) != null ? Number(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value).toFixed(1)+'%' : '—'}</span></span>
+  </div>
+  <div class="bet-footer">
+    <span class="odds-badge">Odds <strong>${row.odds}</strong></span>
+    <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
+  </div>
+</div>`;
+});
 }
 
-async function addToTracker(row){
-  const { error } = await client.from("bet_tracker").insert({
+
+async function addToTracker(btn, row){
+  const key = makeBetKey(row);
+  if(addedKeys.has(key)) return;
+
+  // Optimistic UI
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+  }
+
+  const payload = {
     match: row.match,
     market: row.market,
     odds: row.odds,
-    // keep whatever date column your table expects (older projects used created_at)
-    // if your table does not have this column, Supabase will ignore it.
-    match_date_date: row.bet_date,
     stake: 10,
-    result: "pending",
-  });
+    result: "pending"
+  };
+
+  const { data, error } = await client
+    .from("bet_tracker")
+    .insert([payload])
+    .select();
+
   if(error){
-    console.error('Add to tracker failed', error);
-    return false;
+    console.error("Insert failed:", error);
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'Add';
+    }
+    return;
+  }
+
+  addedKeys.add(key);
+  if(btn){
+    btn.textContent = 'Added';
+    btn.classList.add('added', 'flash');
+    // remove the flash class after animation
+    setTimeout(()=>btn.classList.remove('flash'), 700);
+    btn.disabled = true;
   }
   loadTracker();
-  return true;
 }
+
 
 // ===== Insights (dropdown) =====
 const insightStore = {
@@ -268,6 +321,140 @@ function fmtDayLabel(d){
   return dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
+function escapeHtml(str){
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+// ---------------------------
+// Daily History (derived from bet_tracker)
+// ---------------------------
+
+function dayKeyFromRow(r){
+  if(r && r.match_date){
+    const s = String(r.match_date).slice(0,10);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  }
+  const raw = r?.bet_date || r?.created_at;
+  if(!raw) return "";
+  const d = new Date(raw);
+  if(Number.isNaN(d.getTime())) return "";
+  return d.toISOString().slice(0,10);
+}
+
+function formatDayLabelLong(dayKey){
+  const d = new Date(dayKey + "T00:00:00Z");
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function renderHistory(){
+  const iconFor = (res)=>{
+    if(res==='won') return '✅';
+    if(res==='lost') return '❌';
+    return '⏳';
+  };
+
+  if(!historySummaryEl || !historyListEl) return;
+
+  const rows = Array.isArray(trackerRowsCache) ? trackerRowsCache : [];
+  const groups = {};
+  for(const b of rows){
+    const dayKey = (b.created_at || "").slice(0,10);
+    if(!dayKey) continue;
+    (groups[dayKey] ||= []).push(b);
+  }
+
+  const dayKeys = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
+  historySummaryEl.innerHTML = "";
+
+  window.__historyOpen = window.__historyOpen || {};
+
+  const fmtDay = (dayKey)=>{
+    const d = new Date(dayKey + "T00:00:00");
+    if(Number.isNaN(d.getTime())) return dayKey;
+    // "01 Mar 2026"
+    return d.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+  };
+
+  const renderBet = (b)=>{
+    const result = (b.result || "pending").toLowerCase();
+    const cls = (result==="won"||result==="lost") ? result : "pending";
+    const match = (b.match || "").toString().trim() || "—";
+    const market = (b.market || "").toString().trim() || "—";
+    const odds = (b.odds ?? "").toString().trim() || "—";
+
+    return `
+      <tr class="history-row ${cls}">
+        <td class="hcell-match">${escapeHtml(match)}</td>
+        <td class="hcell-market">${escapeHtml(market)}</td>
+        <td class="hcell-odds">${escapeHtml(odds)}</td>
+        <td class="hcell-result" aria-label="${cls}">${iconFor(cls)}</td>
+      </tr>
+    `;
+  };
+
+  let html = "";
+  for(const dayKey of dayKeys){
+    if(window.__historyOpen[dayKey] === undefined) window.__historyOpen[dayKey] = false;
+
+    const bets = groups[dayKey].slice().sort((a,b)=> (a.id||0)-(b.id||0));
+    const won = bets.filter(b => (b.result||"pending").toLowerCase()==="won").length;
+    const lost = bets.filter(b => (b.result||"pending").toLowerCase()==="lost").length;
+    const pending = bets.length - won - lost;
+
+    const settled = won + lost;
+    const ratio = `${won}/${settled || 0}`;
+
+    const collapsed = !window.__historyOpen[dayKey];
+
+    html += `
+      <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
+        <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
+          <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
+          <div class="daily-toggle-right">
+            <span class="history-day-ratio">${ratio}</span>
+            <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
+          </div>
+        </button>
+
+        <div class="history-day-chips day-stats">
+          <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
+          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+        </div>
+
+        <div class="history-day-bets">
+          <div class="history-table-wrap">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Match</th>
+                  <th>Market</th>
+                  <th class="th-odds">Odds</th>
+                  <th class="th-res"></th>
+                </tr>
+              </thead>
+              <tbody>
+                ${bets.map(renderBet).join("")}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if(!dayKeys.length){
+    html = `<div class="empty">No history yet.</div>`;
+  }
+
+  historyListEl.innerHTML = html;
+}
+
 function isEndOfDay(index, labels){
   if(!labels || !labels.length) return false;
   if(index === labels.length - 1) return true;
@@ -326,7 +513,9 @@ borderWidth:2,
 
 async function loadTracker(){
 const {data}=await client.from("bet_tracker").select("*").order("created_at",{ascending:true});
-trackerAllRows = data || [];
+const rows = data || [];
+trackerRowsCache = rows;
+trackerAllRows = rows;
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);
@@ -334,7 +523,7 @@ let bankroll=start,profit=0,wins=0,losses=0,totalStake=0,totalOdds=0,history=[];
 
 	let html="<table><tr><th class='date-col'>Date</th><th>Match</th><th>Stake</th><th>Result</th><th class='profit-col'>Profit</th></tr>";
 
-data.forEach(row=>{
+rows.forEach(row=>{
 let p=0;
 if(row.result==="won"){p=row.stake*(row.odds-1);wins++;}
 if(row.result==="lost"){p=-row.stake;losses++;}
@@ -373,7 +562,7 @@ if(wonLostElem){
   wonLostElem.innerText = `${wins}-${losses}`;
 }
 
-const totalBets = data.length;
+const totalBets = rows.length;
 const totalElem = document.getElementById("totalBets");
 if(totalElem) totalElem.innerText = totalBets;
 const totalStakedCard = document.getElementById("totalStakedCard");
@@ -382,7 +571,7 @@ if(totalStakedCard){
 }
 
 
-avgOddsElem.innerText=data.length?(totalOdds/data.length).toFixed(2):0;
+avgOddsElem.innerText=rows.length?(totalOdds/rows.length).toFixed(2):0;
 
 profitCard.classList.remove("glow-green","glow-red");
 if(profit>0) profitCard.classList.add("glow-green");
@@ -390,18 +579,18 @@ if(profit<0) profitCard.classList.add("glow-red");
 
 
 // Daily labels based on the *game* date when available
-const dailyLabels = data.map(r => fmtDayLabel(r.match_date_date || r.bet_date || r.created_at));
+const dailyLabels = rows.map(r => fmtDayLabel(r.match_date_date || r.bet_date || r.created_at));
 renderDailyChart(history, dailyLabels);
 
 // ---- Monthly & Market analytics (tabs + mini summary) ----
 const countElem = document.getElementById("betCount");
-if(countElem) countElem.textContent = String(data.length);
+if(countElem) countElem.textContent = String(rows.length);
 
 // Monthly profit aggregation (ROI version)
 const monthMap = {};
 const monthStakeMap = {};
 
-data.forEach(r=>{
+rows.forEach(r=>{
   const d = new Date(r.created_at);
   const key = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
   monthMap[key] = (monthMap[key]||0) + rowProfit(r);
@@ -497,12 +686,12 @@ async function updateResult(id,val){
 if(val==="delete"){
 if(!confirm("Delete this bet?")){loadTracker();return;}
 await client.from("bet_tracker").delete().eq("id",id);
+// Refresh the Value Bets feed so the button switches back from "Added" to "Add".
+loadBets();
 }else{
 await client.from("bet_tracker").update({result:val}).eq("id",id);
 }
 loadTracker();
-// Keep Value Bets "Added" buttons in sync if a tracker row is deleted/changed
-loadBets();
 }
 
 function exportCSV(){
