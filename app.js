@@ -1,3 +1,16 @@
+function localISODate(dt){
+  if(dt == null) return "";
+  const s = String(dt);
+  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
+  if(m) return m[0];
+  const d = (dt instanceof Date) ? dt : new Date(dt);
+  if(Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const mo = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${mo}-${day}`;
+}
+
 
 const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
@@ -7,13 +20,6 @@ const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
 const roiElem=document.getElementById("roi");
 const winrateElem=document.getElementById("winrate");
-const betsSection=document.getElementById("betsSection");
-const betsGrid=document.getElementById("betsGrid");
-const tabBets=document.getElementById("tabBets");
-const tabTracker=document.getElementById("tabTracker");
-const tabHistory=document.getElementById("tabHistory");
-const trackerSection=document.getElementById("trackerSection");
-const historySection=document.getElementById("historySection");
 const winsElem=document.getElementById("wins");
 const lossesElem=document.getElementById("losses");
 const avgOddsElem=document.getElementById("avgOdds");
@@ -22,24 +28,14 @@ const profitCard=document.getElementById("profitCard");
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
 
-function _normalizeKeyDate(raw){
-  if(!raw) return "";
-  // Accept YYYY-MM-DD or ISO strings, output YYYY-MM-DD when possible
-  const s = String(raw);
-  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
-  if(m) return m[0];
-  const d = new Date(raw);
-  if(Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0,10);
-}
-
 function makeBetKey(row){
-  // Use a stable composite key that exists in BOTH feed rows and tracker rows
-  const match = (row?.match ?? "").toString().trim();
-  const market = (row?.market ?? "").toString().trim();
-  const odds = (row?.odds ?? "").toString().trim();
-  const date = _normalizeKeyDate(row?.bet_date || row?.match_date || row?.match_date_date || row?.created_at);
-  return `k:${match}|${market}|${odds}|${date}`;
+  // Prefer stable IDs if present
+  if(row && row.id != null) return `id:${row.id}`;
+  const m = row?.match ?? '';
+  const mk = row?.market ?? '';
+  const o = row?.odds ?? '';
+  const d = row?.bet_date ?? row?.match_date ?? row?.created_at ?? '';
+  return `k:${m}|${mk}|${o}|${d}`;
 }
 
 // Top navigation tabs
@@ -55,9 +51,8 @@ if(historyListEl){
     const dayKey = btn.dataset.day;
     if(!dayKey) return;
     // Daily History accordion: default collapsed, store open state per day.
-    window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
+    window.__historyOpen = window.__historyOpen || {};
     window.__historyOpen[dayKey] = !window.__historyOpen[dayKey];
-    localStorage.setItem('history_open', JSON.stringify(window.__historyOpen));
     renderHistory();
   });
 }
@@ -100,7 +95,7 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds,bet_date,match_date,match_date_date,created_at")
+      .select("match,market,odds")
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
@@ -110,9 +105,24 @@ async function loadBets(){
   }
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+const todayKey = localISODate(new Date());
+const feedRows = (data || []).filter(r=>{
+  const raw = r.bet_date || r.match_date || r.created_at;
+  const k = localISODate(raw);
+  return k === todayKey;
+});
 betsGrid.innerHTML="";
-if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
- (data || []).forEach(row=>{
+if(!feedRows || !feedRows.length){
+  betsGrid.innerHTML = `
+    <div class="empty-state">
+      <div class="empty-title">No value bets for today</div>
+      <div class="empty-sub">Today: <strong>${todayKey}</strong></div>
+      <div class="empty-sub">Set <strong>bet_date</strong> to today in <strong>value_bets_feed</strong> to make it appear.</div>
+    </div>
+  `;
+  return;
+}
+ (feedRows || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -148,7 +158,6 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-    bet_date: row.bet_date || null,
     stake: 10,
     result: "pending"
   };
@@ -382,7 +391,7 @@ function renderHistory(){
   const rows = Array.isArray(trackerRowsCache) ? trackerRowsCache : [];
   const groups = {};
   for(const b of rows){
-    const dayKey = dayKeyFromRow(b);
+    const dayKey = (b.created_at || "").slice(0,10);
     if(!dayKey) continue;
     (groups[dayKey] ||= []).push(b);
   }
@@ -390,7 +399,7 @@ function renderHistory(){
   const dayKeys = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
   historySummaryEl.innerHTML = "";
 
-  window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
+  window.__historyOpen = window.__historyOpen || {};
 
   const fmtDay = (dayKey)=>{
     const d = new Date(dayKey + "T00:00:00");
@@ -434,19 +443,19 @@ function renderHistory(){
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
         <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
           <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
-
-          <div class="daily-toggle-center">
-            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
-            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-          </div>
-
           <div class="daily-toggle-right">
             <span class="history-day-ratio">${ratio}</span>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-          <div class="history-day-bets">
+
+        <div class="history-day-chips day-stats">
+          <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
+          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+        </div>
+
+        <div class="history-day-bets">
           <div class="history-table-wrap">
             <table class="history-table">
               <thead>
@@ -535,10 +544,6 @@ const {data}=await client.from("bet_tracker").select("*").order("created_at",{as
 const rows = data || [];
 trackerRowsCache = rows;
 trackerAllRows = rows;
-
-// Keep Value Bets \"Added\" state synced with tracker rows
-addedKeys.clear();
-rows.forEach(r => addedKeys.add(makeBetKey(r)));
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);
