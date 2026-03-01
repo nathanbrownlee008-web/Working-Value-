@@ -30,6 +30,19 @@ const tabHistoryEl = document.getElementById("tabHistory");
 const historySectionEl = document.getElementById("historySection");
 const historyDaySelectEl = document.getElementById("historyDaySelect");
 const historyListEl = document.getElementById("historyList");
+
+if(historyListEl){
+  historyListEl.addEventListener("click",(e)=>{
+    const btn = e.target.closest(".history-toggle");
+    if(!btn) return;
+    const dayKey = btn.dataset.day;
+    if(!dayKey) return;
+    window.__historyCollapsed = window.__historyCollapsed || {};
+    const current = window.__historyCollapsed[dayKey];
+    window.__historyCollapsed[dayKey] = !(current === true); // toggle, default false -> open? we'll set default in renderHistory
+    renderHistory();
+  });
+}
 const historySummaryEl = document.getElementById("historySummary");
 const historyRefreshEl = document.getElementById("historyRefresh");
 
@@ -59,16 +72,7 @@ function switchTab(tab){
   }
 }
 
-if(historyDaySelectEl){
-  historyDaySelectEl.addEventListener("change", ()=>renderHistory());
-}
 
-if(historyRefreshEl){
-  historyRefreshEl.addEventListener("click", async ()=>{
-    await loadTracker();
-    renderHistory();
-  });
-}
 
 async function loadBets(){
   // Rebuild "Added" state from tracker every time we render the feed.
@@ -348,91 +352,95 @@ function formatDayLabelLong(dayKey){
 }
 
 function renderHistory(){
-  if(!historySectionEl || !historyDaySelectEl || !historyListEl || !historySummaryEl) return;
+  if(!historySummaryEl || !historyListEl) return;
 
-  const rows = trackerRowsCache || [];
-  const daySet = new Set(rows.map(dayKeyFromRow).filter(Boolean));
-  const days = Array.from(daySet).sort((a,b)=>b.localeCompare(a));
-
-  const prev = historyDaySelectEl.value;
-  historyDaySelectEl.innerHTML = "";
-  days.forEach(dk=>{
-    const opt=document.createElement("option");
-    opt.value=dk;
-    opt.textContent=formatDayLabelLong(dk);
-    historyDaySelectEl.appendChild(opt);
-  });
-
-  const selected = (prev && days.includes(prev)) ? prev : (days[0] || "");
-  if(selected) historyDaySelectEl.value = selected;
-
-  const dayRows = selected ? rows.filter(r=>dayKeyFromRow(r)===selected) : [];
-
-  let won=0,lost=0,pending=0;
-  let staked=0, profit=0;
-  dayRows.forEach(r=>{
-    const res = String(r.result || "pending").toLowerCase();
-    const stake = Number(r.stake)||0;
-    const p = Number(r.profit)||0;
-    staked += stake;
-    profit += p;
-    if(res==="won") won++;
-    else if(res==="lost") lost++;
-    else pending++;
-  });
-  const roi = staked>0 ? (profit/staked)*100 : 0;
-
-  historySummaryEl.innerHTML = `
-    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-      <div><strong>${selected ? formatDayLabelLong(selected) : "No data"}</strong></div>
-      <div>Won: <strong>${won}</strong> &nbsp; Lost: <strong>${lost}</strong> &nbsp; Pending: <strong>${pending}</strong></div>
-      <div>Staked: <strong>£${staked.toFixed(2)}</strong> &nbsp; Profit: <strong>£${profit.toFixed(2)}</strong> &nbsp; ROI: <strong>${roi.toFixed(1)}%</strong></div>
-    </div>
-  `;
-
-  historyListEl.innerHTML = "";
-  if(dayRows.length===0){
-    historyListEl.innerHTML = `<div class="empty">No bets for this day.</div>`;
-    return;
+  const rows = Array.isArray(trackerRowsCache) ? trackerRowsCache : [];
+  const groups = {};
+  for(const b of rows){
+    const dayKey = (b.created_at || "").slice(0,10);
+    if(!dayKey) continue;
+    (groups[dayKey] ||= []).push(b);
   }
 
-  dayRows
-    .slice()
-    .sort((a,b)=>{
-      const da = new Date(a.bet_date || a.created_at || 0).getTime();
-      const db = new Date(b.bet_date || b.created_at || 0).getTime();
-      return db - da;
-    })
-    .forEach(r=>{
-      const res = String(r.result || "pending").toLowerCase();
-      const cls = res==="won" ? "win" : (res==="lost" ? "loss" : "pending");
-      const icon = res==="won" ? "✅" : (res==="lost" ? "❌" : "⏳");
+  const dayKeys = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
+  historySummaryEl.innerHTML = "";
 
-      const card=document.createElement("div");
-      card.className = `bet-card history-card ${cls}`;
+  window.__historyCollapsed = window.__historyCollapsed || {};
 
-      const stake = Number(r.stake)||0;
-      const odds = Number(r.odds)||0;
-      const p = Number(r.profit)||0;
-      const profitTxt = (p>=0?"£":"-£") + Math.abs(p).toFixed(2);
+  const fmtDay = (dayKey)=>{
+    const d = new Date(dayKey + "T00:00:00");
+    if(Number.isNaN(d.getTime())) return dayKey;
+    // "01 Mar 2026"
+    return d.toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" });
+  };
 
-      card.innerHTML = `
-        <div class="bet-top">
-          <div>
-            <div class="bet-match">${escapeHtml(r.match || "")}</div>
-            <div class="bet-market">${escapeHtml(r.market || "")}</div>
+  const iconFor = (r)=>{
+    if(r==="won") return "✅";
+    if(r==="lost") return "❌";
+    return "⏳";
+  };
+
+  const renderBet = (b)=>{
+    const result = (b.result || "pending").toLowerCase();
+    const cls = (result==="won"||result==="lost") ? result : "pending";
+    const match = (b.match || "").toString().trim() || "—";
+    const market = (b.market || "").toString().trim() || "";
+    const odds = (b.odds ?? "").toString();
+
+    return `
+      <div class="history-card ${cls}">
+        <div class="history-content">
+          <div class="history-title">${escapeHtml(match)}</div>
+          ${market ? `<div class="history-market">${escapeHtml(market)}</div>` : ``}
+          <div class="history-odds-row">
+            <div class="history-odds">Odds <strong>${escapeHtml(odds || "—")}</strong></div>
+            <div class="result-badge ${cls}" aria-label="${cls}">${iconFor(cls)}</div>
           </div>
-          <div class="result-badge ${cls}">${icon} ${res.toUpperCase()}</div>
         </div>
-        <div class="bet-bottom">
-          <div class="pill">Odds <strong>${odds || "-"}</strong></div>
-          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
-          <div class="pill">Profit <strong>${profitTxt}</strong></div>
-        </div>
-      `;
+      </div>
+    `;
+  };
 
-      historyListEl.appendChild(card);
-    });
+  let html = "";
+  for(const dayKey of dayKeys){
+    if(window.__historyCollapsed[dayKey] === undefined) window.__historyCollapsed[dayKey] = true;
+
+    const bets = groups[dayKey].slice().sort((a,b)=> (a.id||0)-(b.id||0));
+    const won = bets.filter(b => (b.result||"pending").toLowerCase()==="won").length;
+    const lost = bets.filter(b => (b.result||"pending").toLowerCase()==="lost").length;
+    const pending = bets.length - won - lost;
+
+    const settled = won + lost;
+    const ratio = `${won}/${settled || 0}`;
+
+    const collapsed = !!window.__historyCollapsed[dayKey];
+
+    html += `
+      <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
+        <div class="history-day-header">
+          <div class="history-day-top">
+            <div class="history-day-title">${fmtDay(dayKey)}</div>
+            <button class="history-toggle" data-day="${dayKey}">${collapsed ? "Show" : "Hide"}</button>
+            <div class="history-day-ratio">${ratio}</div>
+          </div>
+          <div class="history-day-chips">
+            <div class="history-chip won">✅ Won ${won}</div>
+            <div class="history-chip lost">❌ Lost ${lost}</div>
+            <div class="history-chip pending">⏳ Pending ${pending}</div>
+          </div>
+        </div>
+        <div class="history-day-bets">
+          ${bets.map(renderBet).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  if(!dayKeys.length){
+    html = `<div class="empty">No history yet.</div>`;
+  }
+
+  historyListEl.innerHTML = html;
 }
 
 function isEndOfDay(index, labels){
