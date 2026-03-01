@@ -420,6 +420,7 @@ function renderHistory(){
 
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
+    const winrate = settled ? Math.round((won / settled) * 100) : 0;
 
     const collapsed = !window.__historyOpen[dayKey];
 
@@ -435,7 +436,10 @@ function renderHistory(){
           </div>
 
           <div class="daily-toggle-right">
-            <span class="history-day-ratio">${ratio}</span>
+            <div class="history-ratio-wrap">
+              <span class="history-day-ratio">${ratio}</span>
+              <span class="history-winrate">${winrate}%</span>
+            </div>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>

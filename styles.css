@@ -1253,3 +1253,22 @@ th{text-align:left}
   .daily-toggle-center .history-chip span{ display:none; } /* hide labels only on very small screens */
 }
 
+
+/* ---- Daily History Winrate ---- */
+.history-ratio-wrap{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  line-height:1.1;
+}
+
+.history-winrate{
+  font-size:12px;
+  opacity:0.75;
+  margin-top:4px;
+}
+
+@media (max-width:520px){
+  .history-winrate{ font-size:11px; }
+}
+
