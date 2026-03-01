@@ -392,7 +392,7 @@ function renderHistory(){
         <div class="history-content">
           <div class="history-title">${escapeHtml(match)}</div>
           ${market ? `<div class="history-market">${escapeHtml(market)}</div>` : ``}
-          <div class="history-odds-row">
+          <div class="history-odds-grid">
             <div class="history-odds">Odds <strong>${escapeHtml(odds || "—")}</strong></div>
             <div class="result-badge ${cls}" aria-label="${cls}">${iconFor(cls)}</div>
           </div>
@@ -420,8 +420,10 @@ function renderHistory(){
         <div class="history-day-header">
           <div class="history-day-top">
             <div class="history-day-title">${fmtDay(dayKey)}</div>
-            <button class="history-toggle" data-day="${dayKey}">${collapsed ? "Show" : "Hide"}</button>
-            <div class="history-day-ratio">${ratio}</div>
+            <div class="history-day-actions">
+              <button class="history-toggle" data-day="${dayKey}">${collapsed ? "Show" : "Hide"}</button>
+              <div class="history-day-ratio">${ratio}</div>
+            </div>
           </div>
           <div class="history-day-chips">
             <div class="history-chip won">✅ Won ${won}</div>

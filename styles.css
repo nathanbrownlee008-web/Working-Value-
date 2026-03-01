@@ -545,6 +545,23 @@ th{text-align:left}
   position: relative;
   overflow: hidden;
 }
+
+.history-content{ padding-top: 4px; }
+
+.history-title{
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+
+.history-market{
+  opacity: 0.82;
+  font-size: 14px;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
 .history-card::before{ display:none; }
 
 .history-card-top{
@@ -561,10 +578,28 @@ th{text-align:left}
   margin: 0;
 }
 
-.history-badge-row{
-  display: flex;
-  justify-content: flex-start;
+/* Odds + result icon layout */
+.history-odds-grid{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 10px;
+  align-items: center;
   margin-top: 10px;
+}
+
+.history-odds{
+  font-size: 15px;
+  opacity: 0.92;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.history-odds-grid .result-badge{
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
 }
 
 
@@ -580,7 +615,7 @@ th{text-align:left}
   background: transparent;
   border: none;
   box-shadow: none;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -800,17 +835,19 @@ th{text-align:left}
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:8px 10px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,0.12);
-  background:rgba(255,255,255,0.04);
-  min-width:36px;
-  min-height:36px;
+  width:28px;
+  height:28px;
+  padding:0;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,0.14);
+  background: transparent;
+  min-width:28px;
+  min-height:28px;
 }
 
 
 .history-card .result-badge .emoji{
-  font-size:16px;
+  font-size:14px;
   line-height:1;
 }
 
@@ -887,8 +924,15 @@ th{text-align:left}
   gap:12px;
 }
 
+.history-day-actions{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex: 0 0 auto;
+}
+
 .history-day-ratio{
-  margin-left:auto;
+  margin-left:0;
   padding: 8px 12px;
   border-radius: 999px;
   background: rgba(255,255,255,0.05);
@@ -896,6 +940,27 @@ th{text-align:left}
   font-weight: 700;
   font-size: 14px;
 }
+
+/* Day summary chips (Won/Lost/Pending) */
+.history-day-chips{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:12px;
+}
+
+.history-chip{
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.history-chip.won{ border-color: rgba(34,197,94,0.35); background: rgba(34,197,94,0.08); }
+.history-chip.lost{ border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.08); }
+.history-chip.pending{ border-color: rgba(234,179,8,0.35); background: rgba(234,179,8,0.08); }
 
 .history-toggle{
   padding: 8px 14px;
