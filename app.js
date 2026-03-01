@@ -3,6 +3,21 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
+function localISODate(dt){
+  // YYYY-MM-DD in *local* time (avoid UTC rollover + date-string parsing issues)
+  if(dt == null) return "";
+  const s = String(dt);
+  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
+  if(m) return m[0];
+  const d = (dt instanceof Date) ? dt : new Date(dt);
+  if(Number.isNaN(d.getTime())) return "";
+  const y = d.getFullYear();
+  const mo = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${mo}-${day}`;
+}
+
+
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
 const roiElem=document.getElementById("roi");
@@ -103,9 +118,26 @@ async function loadBets(){
   }
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
-betsGrid.innerHTML="";
-if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
- (data || []).forEach(row=>{
+
+  const todayKey = localISODate(new Date());
+  const feedRows = (data || []).filter(r=>{
+    const raw = r.bet_date || r.match_date || r.created_at;
+    const k = localISODate(raw);
+    return k === todayKey;
+  });
+
+  betsGrid.innerHTML="";
+  if(!feedRows || !feedRows.length){
+    betsGrid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-title">No value bets for today</div>
+        <div class="empty-sub">Today: <strong>${todayKey}</strong></div>
+        <div class="empty-sub">Set <strong>bet_date</strong> to today in <strong>value_bets_feed</strong> to make it appear.</div>
+      </div>`;
+    return;
+  }
+
+  (feedRows || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -141,7 +173,7 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-    bet_date: row.bet_date || null,
+    bet_date: localISODate(row.bet_date || row.match_date || row.created_at) || null,
     stake: 10,
     result: "pending"
   };
