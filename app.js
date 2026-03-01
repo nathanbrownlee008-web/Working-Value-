@@ -37,9 +37,9 @@ if(historyListEl){
     if(!btn) return;
     const dayKey = btn.dataset.day;
     if(!dayKey) return;
-    window.__historyCollapsed = window.__historyCollapsed || {};
-    const current = window.__historyCollapsed[dayKey];
-    window.__historyCollapsed[dayKey] = !(current === true); // toggle, default false -> open? we'll set default in renderHistory
+    // Daily History accordion: default collapsed, store open state per day.
+    window.__historyOpen = window.__historyOpen || {};
+    window.__historyOpen[dayKey] = !window.__historyOpen[dayKey];
     renderHistory();
   });
 }
@@ -371,7 +371,7 @@ function renderHistory(){
   const dayKeys = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
   historySummaryEl.innerHTML = "";
 
-  window.__historyCollapsed = window.__historyCollapsed || {};
+  window.__historyOpen = window.__historyOpen || {};
 
   const fmtDay = (dayKey)=>{
     const d = new Date(dayKey + "T00:00:00");
@@ -399,7 +399,7 @@ function renderHistory(){
 
   let html = "";
   for(const dayKey of dayKeys){
-    if(window.__historyCollapsed[dayKey] === undefined) window.__historyCollapsed[dayKey] = true;
+    if(window.__historyOpen[dayKey] === undefined) window.__historyOpen[dayKey] = false;
 
     const bets = groups[dayKey].slice().sort((a,b)=> (a.id||0)-(b.id||0));
     const won = bets.filter(b => (b.result||"pending").toLowerCase()==="won").length;
@@ -409,23 +409,22 @@ function renderHistory(){
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
 
-    const collapsed = !!window.__historyCollapsed[dayKey];
+    const collapsed = !window.__historyOpen[dayKey];
 
     html += `
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
-        <div class="history-day-header">
-          <div class="history-day-top">
-            <div class="history-day-title">${fmtDay(dayKey)}</div>
-            <div class="history-day-actions">
-              <div class="history-day-ratio">${ratio}</div>
-              <button class="history-toggle" data-day="${dayKey}">${collapsed ? "Show" : "Hide"}</button>
-            </div>
+        <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
+          <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
+          <div class="daily-toggle-right">
+            <span class="history-day-ratio">${ratio}</span>
+            <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
-          <div class="history-day-chips">
-            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
-            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-          </div>
+        </button>
+
+        <div class="history-day-chips day-stats">
+          <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
+          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
         </div>
 
         <div class="history-day-bets">
