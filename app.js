@@ -418,23 +418,19 @@ function renderHistory(){
       const card=document.createElement("div");
       card.className = `bet-card history-card ${cls}`;
 
-      const stake = Number(r.stake)||0;
+      // Keep Daily History compact (no stake/profit/ROI breakdown).
       const odds = Number(r.odds)||0;
-      const p = Number(r.profit)||0;
-      const profitTxt = (p>=0?"£":"-£") + Math.abs(p).toFixed(2);
 
       card.innerHTML = `
-        <div class="bet-top">
-          <div>
-            <div class="bet-match">${escapeHtml(r.match || "")}</div>
-            <div class="bet-market">${escapeHtml(r.market || "")}</div>
+        <div class="history-card-top">
+          <div class="history-card-main">
+            <div class="history-match">${escapeHtml(r.match || "")}</div>
+            <div class="history-market">${escapeHtml(r.market || "")}</div>
           </div>
           <div class="result-badge ${cls}">${icon} ${res.toUpperCase()}</div>
         </div>
-        <div class="bet-bottom">
+        <div class="history-card-bottom">
           <div class="pill">Odds <strong>${odds || "-"}</strong></div>
-          <div class="pill">Stake <strong>£${stake.toFixed(2)}</strong></div>
-          <div class="pill">Profit <strong>${profitTxt}</strong></div>
         </div>
       `;
 

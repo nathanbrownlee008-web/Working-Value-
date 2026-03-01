@@ -535,6 +535,30 @@ th{text-align:left}
   opacity: 0.9;
 }
 
+/* --- Daily History card tweaks (compact + no green strip) --- */
+.history-card{ padding-left:16px; }
+.history-card::before{ display:none; }
+
+.history-card-top{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.history-card-main{ min-width:0; }
+.history-match{
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.2px;
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+.history-market{
+  opacity: 0.72;
+  line-height: 1.2;
+}
+.history-card-bottom{ margin-top: 12px; }
+
 .bet-title{
   font-weight: 900;
   font-size: 15px;
