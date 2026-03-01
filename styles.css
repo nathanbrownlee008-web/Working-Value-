@@ -1012,37 +1012,12 @@ th{text-align:left}
   font-weight: 700;
 }
 
-/* When the toggle is used as a section header (Daily History), make it match Monthly Breakdown */
-.daily-toggle.history-toggle{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px;
-  border-radius: 10px;
-  background: #1e293b;
-  border: 1px solid #334155;
-  width: 100%;
-}
-
 .history-day-chips {
   margin-top: 10px;
   display: flex;
   gap: 10px;
-  flex-wrap: nowrap;            /* keep Won/Lost/Pending on one line */
-  overflow-x: auto;             /* safety on very small screens */
-  -webkit-overflow-scrolling: touch;
+  flex-wrap: wrap;
 }
-
-/* Daily History header uses same look/feel as Monthly Breakdown toggle */
-.daily-toggle{
-  width: 100%;
-  border: none;
-  text-align: left;
-}
-
-.daily-toggle-left{ display:flex; align-items:center; gap:10px; }
-.daily-toggle-right{ display:flex; align-items:center; gap:12px; }
-.daily-chevron{ opacity: 0.8; font-weight: 900; }
 
 .history-chip {
   display: inline-flex;
