@@ -1120,6 +1120,86 @@ th{text-align:left}
   align-items:center;
   gap:10px;
   white-space: nowrap;
+  min-width: 0;
+}
+
+.daily-toggle-left span{
+  overflow:hidden;
+  text-overflow: ellipsis;
+  max-width: 170px;
+  display:inline-block;
+  vertical-align: bottom;
+}
+
+.daily-toggle-center{
+  min-width: 0;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap: nowrap;
+  overflow: visible;
+}
+
+.daily-toggle-center .history-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.daily-toggle-right{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  white-space: nowrap;
+}
+
+/* Mobile: keep the SAME header button, but stack chips UNDER the date so all are visible */
+@media (max-width: 520px){
+  .daily-toggle.history-toggle{
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "left right"
+      "chips chips";
+    row-gap: 10px;
+  }
+
+  .daily-toggle-left{ grid-area: left; }
+  .daily-toggle-right{ grid-area: right; }
+
+  .daily-toggle-center{
+    grid-area: chips;
+    justify-content:flex-start;
+    gap:10px;
+    overflow-x: auto;                 /* safety for super small devices */
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .daily-toggle-center::-webkit-scrollbar{ display:none; }
+
+  .daily-toggle-left span{ max-width: 220px; }
+
+  .daily-toggle-center .history-chip{
+    padding: 7px 10px;
+    font-size: 13px;
+  }
+}
+
+/* Very small phones: slightly tighter chips but still visible */
+@media (max-width: 380px){
+  .daily-toggle-left span{ max-width: 160px; }
+  .daily-toggle-center .history-chip{ padding: 6px 9px; font-size: 12px; gap:6px; }
+}
+
+.daily-toggle-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  white-space: nowrap;
 }
 
 .daily-toggle-left span{
