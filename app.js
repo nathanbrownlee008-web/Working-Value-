@@ -145,6 +145,9 @@ async function loadBets(){
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
+const betsTable=document.getElementById('betsTable');
+const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
+if(betsTbody) betsTbody.innerHTML = "";
 const active=(data||[]).filter(isValueBetActiveToday);
 if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
  (active || []).forEach(row=>{
@@ -165,6 +168,25 @@ betsGrid.innerHTML+=`
     <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
+
+  // Desktop table row (shown via CSS in WIDE mode on large screens)
+  if(betsTbody){
+    const betDate = row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '');
+    const val = (row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value);
+    const valTxt = val != null ? Number(val).toFixed(1)+'%' : '—';
+    betsTbody.innerHTML += `
+      <tr>
+        <td><b>${escapeHtml(row.match||'')}</b></td>
+        <td>${escapeHtml(row.market||'')}</td>
+        <td><span class="pill">${escapeHtml(String(row.odds??''))}</span></td>
+        <td><span class="pill">${escapeHtml(valTxt)}</span></td>
+        <td>${escapeHtml(betDate)}</td>
+        <td>
+          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
+        </td>
+      </tr>
+    `;
+  }
 });
 }
 
