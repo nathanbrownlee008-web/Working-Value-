@@ -112,9 +112,13 @@ function __setInstallButtonState(state){
   }
 
   // preparing
-  btnInstall.disabled = true;
+  // IMPORTANT: the browser only enables the native install prompt after it
+  // decides the site is installable (it will then fire `beforeinstallprompt`).
+  // Until then we keep the button clickable and show guidance instead of
+  // disabling it (disabled looked like "broken" on mobile).
+  btnInstall.disabled = false;
   btnInstall.textContent = "Install App";
-  btnInstall.title = "Preparing install…";
+  btnInstall.title = "Install via browser (Add to Home screen)";
 }
 
 // Initial state
