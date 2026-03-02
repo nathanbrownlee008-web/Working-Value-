@@ -303,10 +303,29 @@ async function loadBets(){
     // Ignore preload failures
   }
 
-const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
-betsGrid.innerHTML="";
-if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
- (data || []).forEach(row=>{
+  // Fetch bets with a real paywall:
+  // - Not logged in: only returns the first 10 bets for today via RPC (database-enforced).
+  // - Logged in + subscriber: can read the full feed via RLS.
+  const { data: sessionData } = await client.auth.getSession();
+  const session = sessionData?.session || null;
+
+  let data = null;
+  if(!session){
+    const today = new Date().toISOString().slice(0,10);
+    const res = await client.rpc("get_public_value_bets", { p_date: today });
+    data = res.data;
+  } else {
+    const res = await client.from("value_bets_feed")
+      .select("*")
+      .order("value_pct",{ascending:false,nullsFirst:false})
+      .order("created_at",{ascending:false});
+    data = res.data;
+  }
+
+  betsGrid.innerHTML="";
+  if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets available.</div>`; return; }
+
+  (data || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -325,6 +344,25 @@ betsGrid.innerHTML+=`
   </div>
 </div>`;
 });
+
+  if(!session){
+    const pay = document.createElement("div");
+    pay.className = "card paywall-card";
+    pay.innerHTML = `
+      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:800;font-size:18px;margin-bottom:4px;">Unlock the full list</div>
+          <div style="opacity:.85;">You’re viewing the first <b>${Math.min(10,(data||[]).length)}</b> bets for today. Log in to see all bets.</div>
+        </div>
+        <button class="pill-btn" id="openLoginFromPaywall">Log in / Sign up</button>
+      </div>
+    `;
+    betsGrid.appendChild(pay);
+    const btn = pay.querySelector("#openLoginFromPaywall");
+    btn?.addEventListener("click", ()=>{
+      openAuthModal();
+    });
+  }
 }
 
 
@@ -1307,3 +1345,10 @@ window.addEventListener("load", async ()=>{
   wireTabLocks();
 });
 // ===== End Auth Modal Handlers =====
+
+// PWA / offline support
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  });
+}
