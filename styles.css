@@ -1301,3 +1301,85 @@ th{text-align:left}
   .history-winrate{ font-size:13px; margin-top:10px; }
 }
 
+/* ===== Layout Mode (Compact / Wide) ===== */
+:root{
+  --app-max: 980px;
+  --app-pad: 18px;
+  --card-radius: 18px;
+  --font-scale: 1;
+}
+
+body{
+  max-width: var(--app-max);
+  margin: 0 auto;
+  padding: var(--app-pad);
+  transform: scale(var(--font-scale));
+  transform-origin: top center;
+}
+
+/* Compact: slightly tighter + smaller max width */
+body.layout-compact{
+  --app-max: 760px;
+  --app-pad: 14px;
+  --font-scale: 1;
+}
+
+/* Wide: breathe on desktop */
+body.layout-wide{
+  --app-max: 1180px;
+  --app-pad: 22px;
+  --font-scale: 1;
+}
+
+/* Top controls row */
+.top-controls{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin: 10px 0 14px 0;
+}
+
+.layout-switch{
+  display:inline-flex;
+  gap:0;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  overflow:hidden;
+}
+
+.layout-btn{
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.88);
+  padding: 8px 12px;
+  font-weight: 900;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.layout-btn.active{
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.98);
+}
+
+.btn-install{
+  white-space: nowrap;
+}
+
+/* Wide layout: allow grids to use more columns */
+body.layout-wide .bets-grid{
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 980px){
+  body.layout-wide .bets-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px){
+  /* On phones, Compact/Wide toggle still works, but don't force huge paddings */
+  body.layout-wide{ --app-pad: 14px; }
+}

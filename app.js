@@ -3,6 +3,60 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
+// ===== Layout Mode (Compact / Wide) + PWA Install =====
+const btnCompact = document.getElementById("btnCompact");
+const btnWide = document.getElementById("btnWide");
+const btnInstall = document.getElementById("btnInstall");
+
+function applyLayout(mode){
+  document.body.classList.remove("layout-compact","layout-wide");
+  document.body.classList.add(mode === "wide" ? "layout-wide" : "layout-compact");
+  localStorage.setItem("layout_mode", mode);
+  if(btnCompact) btnCompact.classList.toggle("active", mode !== "wide");
+  if(btnWide) btnWide.classList.toggle("active", mode === "wide");
+}
+
+(function initLayoutMode(){
+  const saved = localStorage.getItem("layout_mode");
+  if(saved === "wide" || saved === "compact"){
+    applyLayout(saved);
+  }else{
+    // Default: compact on small screens, wide on desktop
+    applyLayout(window.innerWidth >= 950 ? "wide" : "compact");
+  }
+  if(btnCompact) btnCompact.addEventListener("click", ()=>applyLayout("compact"));
+  if(btnWide) btnWide.addEventListener("click", ()=>applyLayout("wide"));
+})();
+
+let __deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e)=>{
+  e.preventDefault();
+  __deferredInstallPrompt = e;
+  if(btnInstall) btnInstall.style.display = "inline-flex";
+});
+
+if(btnInstall){
+  btnInstall.addEventListener("click", async ()=>{
+    if(!__deferredInstallPrompt) return;
+    btnInstall.disabled = true;
+    try{
+      __deferredInstallPrompt.prompt();
+      await __deferredInstallPrompt.userChoice;
+    }finally{
+      __deferredInstallPrompt = null;
+      btnInstall.style.display = "none";
+      btnInstall.disabled = false;
+    }
+  });
+}
+
+// Service worker (PWA offline shell)
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
+
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
 const roiElem=document.getElementById("roi");
@@ -14,26 +68,6 @@ const profitCard=document.getElementById("profitCard");
 
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
-
-// Local (device) date helper in YYYY-MM-DD (avoids UTC offset issues from toISOString)
-function localISODate(d = new Date()){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
-}
-
-function rowFeedISODate(row){
-  // Prefer explicit bet_date (Supabase DATE), otherwise fall back to created_at
-  if(row?.bet_date){
-    return String(row.bet_date).slice(0,10);
-  }
-  if(row?.created_at){
-    const d = new Date(row.created_at);
-    if(!isNaN(d.getTime())) return localISODate(d);
-  }
-  return "";
-}
 
 function makeBetKey(row){
   const match = (row?.match ?? "").toString().trim();
@@ -109,25 +143,10 @@ async function loadBets(){
     // Ignore preload failures
   }
 
-  // Show only today's bets on Value Bets page.
-  // This makes bets automatically disappear after the day ends (while still existing for Tracker/History).
-  const todayISO = localISODate();
-
-  const {data}=await client
-    .from("value_bets_feed")
-    .select("*")
-    .order("value_pct",{ascending:false,nullsFirst:false})
-    .order("created_at",{ascending:false});
+const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
-
-  const todays = (data || []).filter(row => rowFeedISODate(row) === todayISO);
-
-  if(!todays.length){
-    betsGrid.innerHTML = `<div class="card">No bets found for today.</div>`;
-    return;
-  }
-
-  todays.forEach(row=>{
+if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
+ (data || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -135,7 +154,7 @@ betsGrid.innerHTML+=`
   <h3 class="bet-title">${row.match}</h3>
   <div class="bet-meta">
     <span class="bet-market">${row.market}</span>
-    <span class="bet-date">${row.bet_date ? new Date(row.bet_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
+    <span class="bet-date">${row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
   </div>
   <div class="bet-stats">
     <span class="stat-chip"><span class="stat-chip__k">Value</span><span class="stat-chip__v">${(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value) != null ? Number(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value).toFixed(1)+'%' : '—'}</span></span>

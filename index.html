@@ -6,7 +6,10 @@
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="styles.css"/>
+<link rel="stylesheet" href="styles.css?v=1772410471"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#0b1220"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
 </head>
 <body>
 
@@ -16,6 +19,13 @@
 <button id="tabBets" class="active">Value Bets</button>
 <button id="tabTracker">Tracker</button>
 <button id="tabHistory">Daily History</button>
+</div>
+<div class="top-controls">
+  <div class="layout-switch" role="group" aria-label="Layout">
+    <button id="btnCompact" class="layout-btn">Compact</button>
+    <button id="btnWide" class="layout-btn">Wide</button>
+  </div>
+  <button id="btnInstall" class="btn btn-sm btn-install" style="display:none;">Install App</button>
 </div>
 </header>
 
@@ -92,6 +102,6 @@
   <div id="historyList" class="bets-grid history-grid"></div>
 </section>
 
-<script src="app.js"></script>
+<script src="app.js?v=1772410471"></script>
 </body>
 </html>
