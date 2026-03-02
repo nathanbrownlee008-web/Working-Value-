@@ -13,11 +13,17 @@ body{background:#0f172a;color:#e2e8f0;font-family:Inter,sans-serif;margin:0;padd
   gap:10px;
 }
 
+.history-grid{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+body.layout-wide .history-grid{
+  grid-template-columns: 1fr !important;
+}
 
 /* Daily History should always be one row per day (prevents overlap in "desktop mode" on mobile) */
-.history-grid{
-  grid-template-columns: 1fr;
-}
 /* Value Bets - desktop table view (shown in WIDE mode on large screens) */
 .bets-table-wrap{max-width:1200px;margin:0 auto;padding:0 16px}
 .bets-table{width:100%;border-collapse:separate;border-spacing:0 10px;display:none}
@@ -1402,19 +1408,15 @@ body.layout-wide{
   body.layout-wide .bets-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide .history-grid{ grid-template-columns: 1fr; }
-
-}
+body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
+  .layout-wide }
 
 @media (min-width: 1200px){
   body.layout-wide .bets-grid{
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-  /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide .history-grid{ grid-template-columns: 1fr; }
-
-}
+body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
+  .layout-wide }
 
 /* In WIDE mode on desktop, Value Bets switches to table rows */
 @media (min-width: 980px){
