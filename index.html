@@ -6,39 +6,32 @@
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="styles.css?v=1772446770"/>
+<link rel="stylesheet" href="styles.css?v=1772410471"/>
+<!-- PWA manifest removed for now (Install App feature disabled) -->
+<meta name="theme-color" content="#0b1220"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
 </head>
-<body>
-<section id="authGate" class="auth-gate" style="display:none;">
-  <div class="auth-card">
-    <div class="auth-title">Subscriber Login</div>
-    <div class="auth-sub">Log in to access Top Daily Tips.</div>
+<body class="locked">
+  <!-- Subscriber Login / Sign-up Gate -->
+  <div id="authGate" class="auth-gate" aria-hidden="false">
+    <div class="auth-card">
+      <h2>Subscriber Access</h2>
+      <p class="auth-sub">Log in (or sign up) to view Top Daily Tips.</p>
 
-    <div class="auth-row">
       <label class="auth-label" for="authEmail">Email</label>
-      <input id="authEmail" class="auth-input" type="email" autocomplete="email" placeholder="you@example.com"/>
-    </div>
+      <input id="authEmail" class="auth-input" type="email" autocomplete="email" placeholder="you@example.com" />
 
-    <div class="auth-row">
       <label class="auth-label" for="authPassword">Password</label>
-      <input id="authPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••"/>
-    </div>
+      <input id="authPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••" />
 
-    <div class="auth-actions">
-      <button id="btnLogin" class="auth-btn primary">Log in</button>
-      <button id="btnMagic" class="auth-btn">Email me a magic link</button>
-    </div>
+      <div class="auth-actions">
+        <button id="btnLogin" class="auth-btn auth-btn-primary" type="button">Log in</button>
+        <button id="btnSignup" class="auth-btn auth-btn-secondary" type="button">Sign up</button>
+      </div>
 
-    <div id="authMsg" class="auth-msg" aria-live="polite"></div>
-
-    <div class="auth-divider"></div>
-
-    <div class="auth-foot">
-      <button id="btnLogout" class="auth-link" style="display:none;">Log out</button>
+      <div id="authMsg" class="auth-msg"></div>
     </div>
   </div>
-</section>
-
 
 <header class="main-header">
 <h1 class="logo-3d">Top Daily Tips</h1>
@@ -47,10 +40,35 @@
 <button id="tabTracker">Tracker</button>
 <button id="tabHistory">Daily History</button>
 </div>
+<div class="top-controls">
+  <div class="layout-switch" role="group" aria-label="Layout">
+    <button id="btnCompact" class="layout-btn">Compact</button>
+    <button id="btnWide" class="layout-btn">Wide</button>
+  </div>
+  <!-- Install App button removed for now -->
+</div>
 </header>
 
 <section id="betsSection">
+<!-- Mobile/compact cards -->
 <div id="betsGrid" class="bets-grid"></div>
+
+<!-- Desktop/wide table -->
+<div class="bets-table-wrap">
+  <table id="betsTable" class="bets-table">
+    <thead>
+      <tr>
+        <th>Match</th>
+        <th>Market</th>
+        <th>Odds</th>
+        <th>Value</th>
+        <th>Date</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
 </section>
 
 <section id="trackerSection" style="display:none;">
@@ -119,9 +137,9 @@
 <section id="historySection" style="display:none;">
   <!-- History shows all days stacked; tap a day to expand/collapse. -->
   <div id="historySummary" class="history-summary"></div>
-  <div id="historyList" class="bets-grid history-grid"></div>
+  <div id="historyList" class="history-grid"></div>
 </section>
 
-<script src="app.js?v=1772446770"></script>
+<script src="app.js?v=1772410471"></script>
 </body>
 </html>
