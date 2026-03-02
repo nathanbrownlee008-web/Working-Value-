@@ -1374,6 +1374,19 @@ body.layout-wide{
   margin: 10px 0 14px 0;
 }
 
+/* Mobile: keep Logout visible (wrap onto next line if needed) */
+@media (max-width: 520px){
+  .top-controls{
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .layout-switch{ flex: 1 1 auto; }
+  .btn-logout{
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
+}
+
 .layout-switch{
   display:inline-flex;
   gap:0;
