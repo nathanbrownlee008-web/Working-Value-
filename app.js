@@ -57,24 +57,79 @@ function applyLayout(mode){
 })();
 
 let __deferredInstallPrompt = null;
-window.addEventListener("beforeinstallprompt", (e)=>{
+
+function __showInstallToast(msg){
+  try{
+    let t = document.getElementById('installToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'installToast';
+      t.style.position = 'fixed';
+      t.style.left = '50%';
+      t.style.bottom = '24px';
+      t.style.transform = 'translateX(-50%)';
+      t.style.background = 'rgba(20,24,32,.92)';
+      t.style.border = '1px solid rgba(255,255,255,.14)';
+      t.style.color = '#e9edf5';
+      t.style.padding = '10px 14px';
+      t.style.borderRadius = '14px';
+      t.style.fontSize = '14px';
+      t.style.zIndex = '9999';
+      t.style.maxWidth = '92vw';
+      t.style.textAlign = 'center';
+      t.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)';
+      t.style.opacity = '0';
+      t.style.transition = 'opacity .18s ease';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(window.__installToastTimer);
+    window.__installToastTimer = setTimeout(()=>{ t.style.opacity = '0'; }, 2200);
+  }catch(_){/* noop */}
+}
+
+// Hide the button until the browser tells us installation is available
+if(btnInstall){
+  btnInstall.style.display = 'none';
+  btnInstall.disabled = false;
+}
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  // Chrome/Edge on Android/desktop
   e.preventDefault();
   __deferredInstallPrompt = e;
-  if(btnInstall) btnInstall.style.display = "inline-flex";
+  if(btnInstall){
+    btnInstall.style.display = 'inline-flex';
+    btnInstall.disabled = false;
+  }
+});
+
+window.addEventListener('appinstalled', ()=>{
+  __deferredInstallPrompt = null;
+  if(btnInstall){
+    btnInstall.style.display = 'none';
+    btnInstall.disabled = false;
+  }
 });
 
 if(btnInstall){
-  btnInstall.addEventListener("click", async ()=>{
-    if(!__deferredInstallPrompt) return;
+  btnInstall.addEventListener('click', async ()=>{
+    if(!__deferredInstallPrompt){
+      // Either already installed, not supported (iOS Safari), or criteria not met yet.
+      __showInstallToast('Install not available yet. In Chrome: ⋮ → Add to Home screen');
+      return;
+    }
     btnInstall.disabled = true;
     try{
       __deferredInstallPrompt.prompt();
       await __deferredInstallPrompt.userChoice;
-    }finally{
-      __deferredInstallPrompt = null;
-      btnInstall.style.display = "none";
-      btnInstall.disabled = false;
-    }
+    }catch(_){/* noop */}
+    __deferredInstallPrompt = null;
+    btnInstall.style.display = 'none';
+    btnInstall.disabled = false;
+  });
+}
   });
 }
 
