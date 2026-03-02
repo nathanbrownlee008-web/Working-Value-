@@ -1339,22 +1339,18 @@ th{text-align:left}
   --app-max: 980px;
   --app-pad: 18px;
   --card-radius: 18px;
-  --font-scale: 1;
 }
 
 body{
   max-width: var(--app-max);
   margin: 0 auto;
   padding: var(--app-pad);
-  transform: scale(var(--font-scale));
-  transform-origin: top center;
 }
 
 /* Compact: slightly tighter + smaller max width */
 body.layout-compact{
   --app-max: 760px;
   --app-pad: 14px;
-  --font-scale: 1;
 }
 
 /* Wide: breathe on desktop */
@@ -1362,7 +1358,6 @@ body.layout-wide{
   /* On small screens Wide behaves like Compact; wide spacing kicks in on desktop via media query below */
   --app-max: 760px;
   --app-pad: 14px;
-  --font-scale: 1;
 }
 
 /* Top controls row */
@@ -1372,6 +1367,19 @@ body.layout-wide{
   justify-content:space-between;
   gap:12px;
   margin: 10px 0 14px 0;
+}
+
+/* Mobile: keep Logout visible (wrap onto next line if needed) */
+@media (max-width: 520px){
+  .top-controls{
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .layout-switch{ flex: 1 1 auto; }
+  .logout-btn{
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
 }
 
 .layout-switch{
@@ -1398,6 +1406,16 @@ body.layout-wide{
   color: rgba(255,255,255,0.98);
 }
 
+/* Logout button matches pill look */
+.logout-btn{
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+}
+.logout-btn:hover{
+  background: rgba(255,255,255,0.08);
+}
+
 
 /* Wide layout: apply multi-column / extra spacing only when there's room */
 @media (min-width: 900px){
@@ -1408,15 +1426,18 @@ body.layout-wide{
   body.layout-wide .bets-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide }
+}
 
 @media (min-width: 1200px){
   body.layout-wide .bets-grid{
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide }
+}
+
+/* Keep Daily History as single-column even in Wide mode */
+body.layout-wide .history-days{
+  grid-template-columns: 1fr !important;
+}
 
 /* In WIDE mode on desktop, Value Bets switches to table rows */
 @media (min-width: 980px){
@@ -1461,6 +1482,8 @@ body:not(.locked) #authGate { display: none; }
   border-radius: 18px;
   padding: 18px;
   box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
 }
 
 .auth-card h2{

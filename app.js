@@ -806,6 +806,9 @@ async function initAppOnce(){
 
 function setLocked(locked){
   document.body.classList.toggle("locked", !!locked);
+  // Show logout button only when authenticated
+  const logoutBtn = document.getElementById("btnLogout");
+  if (logoutBtn) logoutBtn.style.display = locked ? "none" : "inline-flex";
 }
 
 async function initAuthGate(){
@@ -857,7 +860,14 @@ async function initAuthGate(){
         setMsg("Creating account...");
         const email = (emailEl.value || "").trim();
         const password = passEl.value || "";
-        const { error } = await client.auth.signUp({ email, password });
+        const { error } = await client.auth.signUp({
+          email,
+          password,
+          options: {
+            // Helps Supabase email-confirm links return users back to your site
+            emailRedirectTo: window.location.origin,
+          },
+        });
         if(error) throw error;
         // Depending on your Supabase Auth settings, users may need email confirmation.
         // If confirmation is OFF, they'll be logged in immediately.
@@ -887,6 +897,17 @@ async function initAuthGate(){
       setMsg("Please log in to view subscriber content.");
     }
   });
+
+  // Logout button (shows when logged in)
+  const logoutBtn = document.getElementById("btnLogout");
+  if (logoutBtn && !logoutBtn.dataset.bound) {
+    logoutBtn.dataset.bound = "1";
+    logoutBtn.addEventListener("click", async ()=>{
+      try { await client.auth.signOut(); } catch(e) {}
+      setLocked(true);
+      setMsg("Logged out.");
+    });
+  }
 }
 
 
