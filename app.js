@@ -3,6 +3,34 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
+function pad2(n){return String(n).padStart(2,'0');}
+function toLocalYMD(d=new Date()){
+  const yr=d.getFullYear();
+  const mo=pad2(d.getMonth()+1);
+  const da=pad2(d.getDate());
+  return `${yr}-${mo}-${da}`;
+}
+function normalizeDateOnly(value){
+  if(!value) return null;
+  if(typeof value==='string'){
+    if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const dt=new Date(value);
+    if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+    return null;
+  }
+  const dt=new Date(value);
+  if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+  return null;
+}
+function isValueBetActiveToday(row){
+  const today=toLocalYMD(new Date());
+  const start=normalizeDateOnly(row.bet_date) || normalizeDateOnly(row.created_at);
+  const end=normalizeDateOnly(row.bet_end_date) || start;
+  if(!start) return false;
+  return today >= start && today <= end;
+}
+
+
 // ===== Layout Mode (Compact / Wide) + PWA Install =====
 const btnCompact = document.getElementById("btnCompact");
 const btnWide = document.getElementById("btnWide");
@@ -145,8 +173,9 @@ async function loadBets(){
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
-if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
- (data || []).forEach(row=>{
+const active=(data||[]).filter(isValueBetActiveToday);
+if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
+ (active || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
