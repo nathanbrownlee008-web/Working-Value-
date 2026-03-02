@@ -3,59 +3,108 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-function pad2(n){return String(n).padStart(2,'0');}
-function toLocalYMD(d=new Date()){
-  const yr=d.getFullYear();
-  const mo=pad2(d.getMonth()+1);
-  const da=pad2(d.getDate());
-  return `${yr}-${mo}-${da}`;
+// ===== Supabase Auth Gate (Subscribers) =====
+const authGate = document.getElementById("authGate");
+const authEmail = document.getElementById("authEmail");
+const authPassword = document.getElementById("authPassword");
+const btnLogin = document.getElementById("btnLogin");
+const btnMagic = document.getElementById("btnMagic");
+const btnLogout = document.getElementById("btnLogout");
+const authMsg = document.getElementById("authMsg");
+
+function setAuthMsg(msg){
+  if(!authMsg) return;
+  authMsg.textContent = msg || "";
 }
-function normalizeDateOnly(value){
-  if(!value) return null;
-  if(typeof value==='string'){
-    if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-    const dt=new Date(value);
-    if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
-    return null;
+
+function showGate(show){
+  if(!authGate) return;
+  authGate.style.display = show ? "flex" : "none";
+}
+
+async function ensureLoggedIn(){
+  try{
+    const { data } = await client.auth.getSession();
+    const session = data?.session || null;
+    showGate(!session);
+    if(btnLogout) btnLogout.style.display = session ? "inline-block" : "none";
+    return !!session;
+  }catch(e){
+    // If auth is misconfigured, keep app usable (don't brick UI)
+    console.error("Auth check failed:", e);
+    showGate(false);
+    return true;
   }
-  const dt=new Date(value);
-  if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
-  return null;
-}
-function isValueBetActiveToday(row){
-  const today=toLocalYMD(new Date());
-  const start=normalizeDateOnly(row.bet_date) || normalizeDateOnly(row.created_at);
-  const end=normalizeDateOnly(row.bet_end_date) || start;
-  if(!start) return false;
-  return today >= start && today <= end;
 }
 
-
-// ===== Layout Mode (Compact / Wide) =====
-const btnCompact = document.getElementById("btnCompact");
-const btnWide = document.getElementById("btnWide");
-
-function applyLayout(mode){
-  document.body.classList.remove("layout-compact","layout-wide");
-  document.body.classList.add(mode === "wide" ? "layout-wide" : "layout-compact");
-  localStorage.setItem("layout_mode", mode);
-  if(btnCompact) btnCompact.classList.toggle("active", mode !== "wide");
-  if(btnWide) btnWide.classList.toggle("active", mode === "wide");
-}
-
-(function initLayoutMode(){
-  const saved = localStorage.getItem("layout_mode");
-  if(saved === "wide" || saved === "compact"){
-    applyLayout(saved);
-  }else{
-    // Default: compact on small screens, wide on desktop
-    applyLayout(window.innerWidth >= 950 ? "wide" : "compact");
+async function doLogin(){
+  const email = (authEmail?.value || "").trim();
+  const password = (authPassword?.value || "").trim();
+  if(!email || !password){
+    setAuthMsg("Enter email and password.");
+    return;
   }
-  if(btnCompact) btnCompact.addEventListener("click", ()=>applyLayout("compact"));
-  if(btnWide) btnWide.addEventListener("click", ()=>applyLayout("wide"));
-})();
+  if(btnLogin) btnLogin.disabled = true;
+  setAuthMsg("Logging in…");
+  try{
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    setAuthMsg("");
+    await ensureLoggedIn();
+    try{ await loadBets(); }catch(e){}
+    try{ await loadTracker(); }catch(e){}
+    try{ await loadHistory(); }catch(e){}
+  }catch(e){
+    setAuthMsg(e?.message || "Login failed.");
+  }finally{
+    if(btnLogin) btnLogin.disabled = false;
+  }
+}
 
-// (Install App / PWA install button removed for now)
+async function doMagic(){
+  const email = (authEmail?.value || "").trim();
+  if(!email){
+    setAuthMsg("Enter your email first.");
+    return;
+  }
+  if(btnMagic) btnMagic.disabled = true;
+  setAuthMsg("Sending magic link…");
+  try{
+    const { error } = await client.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin }
+    });
+    if(error) throw error;
+    setAuthMsg("Check your email for the login link.");
+  }catch(e){
+    setAuthMsg(e?.message || "Could not send magic link.");
+  }finally{
+    if(btnMagic) btnMagic.disabled = false;
+  }
+}
+
+async function doLogout(){
+  setAuthMsg("Logging out…");
+  try{
+    await client.auth.signOut();
+  }catch(e){
+    console.error(e);
+  }
+  setAuthMsg("");
+  await ensureLoggedIn();
+}
+
+if(btnLogin) btnLogin.addEventListener("click", doLogin);
+if(btnMagic) btnMagic.addEventListener("click", doMagic);
+if(btnLogout) btnLogout.addEventListener("click", doLogout);
+
+client.auth.onAuthStateChange((_event, _session)=>{
+  ensureLoggedIn();
+});
+
+window.addEventListener("load", ()=>{
+  ensureLoggedIn();
+});
 
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
@@ -145,12 +194,8 @@ async function loadBets(){
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
-const betsTable=document.getElementById('betsTable');
-const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
-if(betsTbody) betsTbody.innerHTML = "";
-const active=(data||[]).filter(isValueBetActiveToday);
-if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
- (active || []).forEach(row=>{
+if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
+ (data || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -168,25 +213,6 @@ betsGrid.innerHTML+=`
     <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
-
-  // Desktop table row (shown via CSS in WIDE mode on large screens)
-  if(betsTbody){
-    const betDate = row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '');
-    const val = (row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value);
-    const valTxt = val != null ? Number(val).toFixed(1)+'%' : '—';
-    betsTbody.innerHTML += `
-      <tr>
-        <td><b>${escapeHtml(row.match||'')}</b></td>
-        <td>${escapeHtml(row.market||'')}</td>
-        <td><span class="pill">${escapeHtml(String(row.odds??''))}</span></td>
-        <td><span class="pill">${escapeHtml(valTxt)}</span></td>
-        <td>${escapeHtml(betDate)}</td>
-        <td>
-          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
-        </td>
-      </tr>
-    `;
-  }
 });
 }
 
@@ -233,7 +259,7 @@ async function addToTracker(btn, row){
     setTimeout(()=>btn.classList.remove('flash'), 700);
     btn.disabled = true;
   }
-  loadTracker();
+ensureLoggedIn().then(ok=>{ if(ok) loadTracker(); });
 }
 
 
@@ -764,7 +790,7 @@ if(monthKeys.length){
 
 async function updateStake(id,val){
 await client.from("bet_tracker").update({stake:parseFloat(val)}).eq("id",id);
-loadTracker();
+ensureLoggedIn().then(ok=>{ if(ok) loadTracker(); });
 }
 
 async function updateResult(id,val){
@@ -772,11 +798,11 @@ if(val==="delete"){
 if(!confirm("Delete this bet?")){loadTracker();return;}
 await client.from("bet_tracker").delete().eq("id",id);
 // Refresh the Value Bets feed so the button switches back from "Added" to "Add".
-loadBets();
+ensureLoggedIn().then(ok=>{ if(ok) loadBets(); });
 }else{
 await client.from("bet_tracker").update({result:val}).eq("id",id);
 }
-loadTracker();
+ensureLoggedIn().then(ok=>{ if(ok) loadTracker(); });
 }
 
 function exportCSV(){
@@ -793,11 +819,8 @@ a.download="bet_tracker.csv";
 a.click();
 });
 }
-
-loadBets();
-loadTracker();
-
-
+ensureLoggedIn().then(ok=>{ if(ok) loadBets(); });
+ensureLoggedIn().then(ok=>{ if(ok) loadTracker(); });
 // Toggle with animation + memory
 function toggleTracker(){
   const wrapper = document.getElementById("trackerWrapper");
