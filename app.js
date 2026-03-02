@@ -3,21 +3,6 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-function localISODate(dt){
-  // YYYY-MM-DD in *local* time (avoid UTC rollover + date-string parsing issues)
-  if(dt == null) return "";
-  const s = String(dt);
-  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
-  if(m) return m[0];
-  const d = (dt instanceof Date) ? dt : new Date(dt);
-  if(Number.isNaN(d.getTime())) return "";
-  const y = d.getFullYear();
-  const mo = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${mo}-${day}`;
-}
-
-
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
 const roiElem=document.getElementById("roi");
@@ -30,24 +15,31 @@ const profitCard=document.getElementById("profitCard");
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
 
-function _normalizeKeyDate(raw){
-  if(!raw) return "";
-  // Accept YYYY-MM-DD or ISO strings, output YYYY-MM-DD when possible
-  const s = String(raw);
-  const m = s.match(/^\d{4}-\d{2}-\d{2}/);
-  if(m) return m[0];
-  const d = new Date(raw);
-  if(Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0,10);
+// Local (device) date helper in YYYY-MM-DD (avoids UTC offset issues from toISOString)
+function localISODate(d = new Date()){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function rowFeedISODate(row){
+  // Prefer explicit bet_date (Supabase DATE), otherwise fall back to created_at
+  if(row?.bet_date){
+    return String(row.bet_date).slice(0,10);
+  }
+  if(row?.created_at){
+    const d = new Date(row.created_at);
+    if(!isNaN(d.getTime())) return localISODate(d);
+  }
+  return "";
 }
 
 function makeBetKey(row){
-  // Use a stable composite key that exists in BOTH feed rows and tracker rows
   const match = (row?.match ?? "").toString().trim();
   const market = (row?.market ?? "").toString().trim();
   const odds = (row?.odds ?? "").toString().trim();
-  const date = _normalizeKeyDate(row?.bet_date || row?.match_date || row?.match_date_date || row?.created_at);
-  return `k:${match}|${market}|${odds}|${date}`;
+  return `k:${match}|${market}|${odds}`;
 }
 
 // Top navigation tabs
@@ -108,7 +100,7 @@ async function loadBets(){
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
-      .select("match,market,odds,bet_date,match_date,match_date_date,created_at")
+      .select("match,market,odds")
       .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
@@ -117,27 +109,25 @@ async function loadBets(){
     // Ignore preload failures
   }
 
-const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+  // Show only today's bets on Value Bets page.
+  // This makes bets automatically disappear after the day ends (while still existing for Tracker/History).
+  const todayISO = localISODate();
 
-  const todayKey = localISODate(new Date());
-  const feedRows = (data || []).filter(r=>{
-    const raw = r.bet_date || r.match_date || r.created_at;
-    const k = localISODate(raw);
-    return k === todayKey;
-  });
+  const {data}=await client
+    .from("value_bets_feed")
+    .select("*")
+    .order("value_pct",{ascending:false,nullsFirst:false})
+    .order("created_at",{ascending:false});
+betsGrid.innerHTML="";
 
-  betsGrid.innerHTML="";
-  if(!feedRows || !feedRows.length){
-    betsGrid.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-title">No value bets for today</div>
-        <div class="empty-sub">Today: <strong>${todayKey}</strong></div>
-        <div class="empty-sub">Set <strong>bet_date</strong> to today in <strong>value_bets_feed</strong> to make it appear.</div>
-      </div>`;
+  const todays = (data || []).filter(row => rowFeedISODate(row) === todayISO);
+
+  if(!todays.length){
+    betsGrid.innerHTML = `<div class="card">No bets found for today.</div>`;
     return;
   }
 
-  (feedRows || []).forEach(row=>{
+  todays.forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -145,7 +135,7 @@ betsGrid.innerHTML+=`
   <h3 class="bet-title">${row.match}</h3>
   <div class="bet-meta">
     <span class="bet-market">${row.market}</span>
-    <span class="bet-date">${row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
+    <span class="bet-date">${row.bet_date ? new Date(row.bet_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
   </div>
   <div class="bet-stats">
     <span class="stat-chip"><span class="stat-chip__k">Value</span><span class="stat-chip__v">${(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value) != null ? Number(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value).toFixed(1)+'%' : '—'}</span></span>
@@ -173,8 +163,7 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-    bet_date: localISODate(row.bet_date || row.match_date || row.created_at) || null,
-    stake: 10,
+        stake: 10,
     result: "pending"
   };
 
@@ -187,15 +176,14 @@ async function addToTracker(btn, row){
     console.error("Insert failed:", error);
     if(btn){
       btn.disabled = false;
-      btn.textContent = 'Add';
+      btn.textContent = "Add";
     }
+    // Quick visible feedback (mobile)
+    try{ alert("Could not add bet. Check tracker table columns / RLS."); }catch(e){}
     return;
   }
 
-  // Use server-returned row for the key (so refresh matches even if DB normalizes dates)
-  const serverRow = (Array.isArray(data) && data.length) ? data[0] : null;
-  const finalKey = serverRow ? makeBetKey(serverRow) : key;
-  addedKeys.add(finalKey);
+  addedKeys.add(key);
   if(btn){
     btn.textContent = 'Added';
     btn.classList.add('added', 'flash');
@@ -455,6 +443,7 @@ function renderHistory(){
 
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
+    const winrate = settled ? Math.round((won / settled) * 100) : 0;
 
     const collapsed = !window.__historyOpen[dayKey];
 
@@ -470,15 +459,14 @@ function renderHistory(){
           </div>
 
           <div class="daily-toggle-right">
-            <span class="history-day-ratio">${ratio}</span>
+            <div class="history-ratio-wrap">
+              <span class="history-day-ratio">${ratio}</span>
+              <span class="history-winrate ${winrate>=70 ? "wr-hot" : winrate>=55 ? "wr-good" : winrate>=40 ? "wr-mid" : "wr-bad"}">${winrate>=70 ? "🔥 " : ""}Winrate ${winrate}%</span>
+            </div>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-        </div>
-
-        <div class="history-day-bets">
+          <div class="history-day-bets">
           <div class="history-table-wrap">
             <table class="history-table">
               <thead>
