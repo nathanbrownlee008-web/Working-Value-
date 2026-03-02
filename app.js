@@ -120,6 +120,9 @@ function __setInstallButtonState(state){
   btnInstall.textContent = "Install App";
   btnInstall.title = "Install via browser (Add to Home screen)";
 }
+// Track SW readiness (Chrome requires a SW controlling the page before it fires `beforeinstallprompt`).
+let __swReady = false;
+
 
 // Initial state
 if(btnInstall){
@@ -151,12 +154,10 @@ if(btnInstall){
       if(isIOS){
         __showInstallToast("On iPhone/iPad: Share → Add to Home Screen");
       }else{
-        let hasSW = false;
-        try{ hasSW = !!(navigator.serviceWorker && await navigator.serviceWorker.getRegistration()); }catch(_){}
-        if(!hasSW){
-          __showInstallToast("Install not ready: service worker not active. Refresh once.");
+        if(!__swReady){
+          __showInstallToast("Getting install ready… refresh once.");
         }else{
-          __showInstallToast("Install not ready yet. Refresh once, or Chrome ⋮ → Install app / Add to Home screen");
+          __showInstallToast("Chrome menu (⋮) → Install app / Add to Home screen");
         }
       }
       return;
@@ -178,8 +179,12 @@ if(btnInstall){
 
 // Service worker (PWA offline shell)
 if("serviceWorker" in navigator){
-  window.addEventListener("load", ()=>{
-    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  window.addEventListener("load", async ()=>{
+    try{
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      navigator.serviceWorker.ready.then(()=>{ __swReady = true; }).catch(()=>{});
+      navigator.serviceWorker.addEventListener("controllerchange", ()=>{ __swReady = true; });
+    }catch(_){ }
   });
 }
 
