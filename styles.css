@@ -1364,9 +1364,6 @@ body.layout-wide{
   color: rgba(255,255,255,0.98);
 }
 
-.btn-install{
-  white-space: nowrap;
-}
 
 /* Wide layout: allow grids to use more columns */
 body.layout-wide .bets-grid{
@@ -1384,5 +1381,5 @@ body.layout-wide .bets-grid{
   body.layout-wide{ --app-pad: 14px; }
 }
 
-.btn-install:disabled{ opacity: .55; cursor: not-allowed; }
+
 
