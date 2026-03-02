@@ -122,6 +122,14 @@ function __setInstallButtonState(state){
 }
 // Track SW readiness (Chrome requires a SW controlling the page before it fires `beforeinstallprompt`).
 let __swReady = false;
+let __swReg = null;
+
+function __markSwReady(){
+  __swReady = true;
+  if(__deferredInstallPrompt){
+    __setInstallButtonState("ready");
+  }
+}
 
 
 // Initial state
@@ -181,9 +189,39 @@ if(btnInstall){
 if("serviceWorker" in navigator){
   window.addEventListener("load", async ()=>{
     try{
-      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      navigator.serviceWorker.ready.then(()=>{ __swReady = true; }).catch(()=>{});
-      navigator.serviceWorker.addEventListener("controllerchange", ()=>{ __swReady = true; });
+      __swReg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+
+      const reloadKey = "pwa_sw_reload_once";
+      const maybeReloadForControl = ()=>{
+        if(!navigator.serviceWorker.controller && !sessionStorage.getItem(reloadKey)){
+          sessionStorage.setItem(reloadKey, "1");
+          location.reload();
+        }
+      };
+
+      if(navigator.serviceWorker.controller){
+        __markSwReady();
+      }
+
+      navigator.serviceWorker.ready
+        .then(()=>{ __markSwReady(); })
+        .catch(()=>{});
+
+      navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+        __markSwReady();
+      });
+
+      const watch = (worker)=>{
+        if(!worker) return;
+        worker.addEventListener("statechange", ()=>{
+          if(worker.state === "activated"){
+            __markSwReady();
+            maybeReloadForControl();
+          }
+        });
+      };
+      watch(__swReg.installing);
+      __swReg.addEventListener("updatefound", ()=>watch(__swReg.installing));
     }catch(_){ }
   });
 }
