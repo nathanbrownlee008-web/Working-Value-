@@ -1535,3 +1535,13 @@ body:not(.locked) #authGate { display: none; }
 
 
 
+
+/* === Auth Gate responsive tweaks (override) === */
+.auth-gate{
+  padding:16px;
+  overflow:auto;
+}
+@media (max-height:700px){
+  .auth-gate{align-items:flex-start; padding-top:24px;}
+}
+.auth-card{width:100%; max-width:520px;}

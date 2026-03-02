@@ -827,7 +827,7 @@ async function initAuthGate(){
     return;
   }
 
-  const { data: { session } } = await supabaseClient.auth.getSession();
+  const { data: { session } } = await client.auth.getSession();
   if(session){
     setLocked(false);
     await initAppOnce();
@@ -840,7 +840,7 @@ async function initAuthGate(){
       setMsg("Logging in...");
       const email = (emailEl.value || "").trim();
       const password = passEl.value || "";
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { error } = await client.auth.signInWithPassword({ email, password });
       if(error) throw error;
       setLocked(false);
       setMsg("");
@@ -857,11 +857,11 @@ async function initAuthGate(){
         setMsg("Creating account...");
         const email = (emailEl.value || "").trim();
         const password = passEl.value || "";
-        const { error } = await supabaseClient.auth.signUp({ email, password });
+        const { error } = await client.auth.signUp({ email, password });
         if(error) throw error;
         // Depending on your Supabase Auth settings, users may need email confirmation.
         // If confirmation is OFF, they'll be logged in immediately.
-        const { data: { session } } = await supabaseClient.auth.getSession();
+        const { data: { session } } = await client.auth.getSession();
         if(session){
           setLocked(false);
           setMsg("");
@@ -878,7 +878,7 @@ async function initAuthGate(){
   }
 
   // If the user logs in/out in another tab, keep UI in sync.
-  supabaseClient.auth.onAuthStateChange(async (_event, newSession)=>{
+  client.auth.onAuthStateChange(async (_event, newSession)=>{
     if(newSession){
       setLocked(false);
       await initAppOnce();
