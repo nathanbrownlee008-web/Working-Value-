@@ -89,9 +89,11 @@ function __showInstallToast(msg){
   }catch(_){/* noop */}
 }
 
-// Hide the button until the browser tells us installation is available
+// Keep the button visible.
+// Some browsers won't fire `beforeinstallprompt` immediately (or at all on iOS),
+// so hiding it makes it look like it's missing/broken.
 if(btnInstall){
-  btnInstall.style.display = 'none';
+  btnInstall.style.display = 'inline-flex';
   btnInstall.disabled = false;
 }
 
@@ -108,8 +110,8 @@ window.addEventListener('beforeinstallprompt', (e)=>{
 window.addEventListener('appinstalled', ()=>{
   __deferredInstallPrompt = null;
   if(btnInstall){
-    btnInstall.style.display = 'none';
-    btnInstall.disabled = false;
+    btnInstall.disabled = true;
+    btnInstall.textContent = 'Installed';
   }
 });
 
@@ -117,7 +119,12 @@ if(btnInstall){
   btnInstall.addEventListener('click', async ()=>{
     if(!__deferredInstallPrompt){
       // Either already installed, not supported (iOS Safari), or criteria not met yet.
-      __showInstallToast('Install not available yet. In Chrome: ⋮ → Add to Home screen');
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      if(isIOS){
+        __showInstallToast('On iPhone/iPad: Share → Add to Home Screen');
+      }else{
+        __showInstallToast('Install not available yet. Try refresh, or Chrome ⋮ → Install app / Add to Home screen');
+      }
       return;
     }
     btnInstall.disabled = true;
@@ -126,8 +133,8 @@ if(btnInstall){
       await __deferredInstallPrompt.userChoice;
     }catch(_){/* noop */}
     __deferredInstallPrompt = null;
-    btnInstall.style.display = 'none';
-    btnInstall.disabled = false;
+    btnInstall.disabled = true;
+    btnInstall.textContent = 'Installed';
   });
 }
 
