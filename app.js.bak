@@ -130,6 +130,8 @@ if(btnInstall){
     btnInstall.disabled = false;
   });
 }
+  });
+}
 
 // Service worker (PWA offline shell)
 if("serviceWorker" in navigator){
