@@ -6,32 +6,9 @@
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="styles.css?v=1772410471"/>
-<!-- PWA manifest removed for now (Install App feature disabled) -->
-<meta name="theme-color" content="#0b1220"/>
-<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<link rel="stylesheet" href="styles.css?v=1772491421"/>
 </head>
-<body class="locked">
-  <!-- Subscriber Login / Sign-up Gate -->
-  <div id="authGate" class="auth-gate" aria-hidden="false">
-    <div class="auth-card">
-      <h2>Subscriber Access</h2>
-      <p class="auth-sub">Log in (or sign up) to view Top Daily Tips.</p>
-
-      <label class="auth-label" for="authEmail">Email</label>
-      <input id="authEmail" class="auth-input" type="email" autocomplete="email" placeholder="you@example.com" />
-
-      <label class="auth-label" for="authPassword">Password</label>
-      <input id="authPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••" />
-
-      <div class="auth-actions">
-        <button id="btnLogin" class="auth-btn auth-btn-primary" type="button">Log in</button>
-        <button id="btnSignup" class="auth-btn auth-btn-secondary" type="button">Sign up</button>
-      </div>
-
-      <div id="authMsg" class="auth-msg"></div>
-    </div>
-  </div>
+<body>
 
 <header class="main-header">
 <h1 class="logo-3d">Top Daily Tips</h1>
@@ -40,36 +17,11 @@
 <button id="tabTracker">Tracker</button>
 <button id="tabHistory">Daily History</button>
 </div>
-<div class="top-controls">
-  <div class="layout-switch" role="group" aria-label="Layout">
-    <button id="btnCompact" class="layout-btn">Compact</button>
-    <button id="btnWide" class="layout-btn">Wide</button>
-  </div>
-  <button id="btnLogout" class="layout-btn logout-btn" type="button" style="display:none">Log out</button>
-  <!-- Install App button removed for now -->
-</div>
 </header>
 
 <section id="betsSection">
-<!-- Mobile/compact cards -->
+<div id="paywallBanner" class="paywall-banner" style="display:none;"></div>
 <div id="betsGrid" class="bets-grid"></div>
-
-<!-- Desktop/wide table -->
-<div class="bets-table-wrap">
-  <table id="betsTable" class="bets-table">
-    <thead>
-      <tr>
-        <th>Match</th>
-        <th>Market</th>
-        <th>Odds</th>
-        <th>Value</th>
-        <th>Date</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
 </section>
 
 <section id="trackerSection" style="display:none;">
@@ -138,9 +90,44 @@
 <section id="historySection" style="display:none;">
   <!-- History shows all days stacked; tap a day to expand/collapse. -->
   <div id="historySummary" class="history-summary"></div>
-  <div id="historyList" class="history-grid"></div>
+  <div id="historyList" class="bets-grid history-grid"></div>
 </section>
 
-<script src="app.js?v=1772410471"></script>
+<script src="app.js?v=1772491421"></script>
+<div id="authModal" class="auth-modal" style="display:none;" aria-hidden="true">
+  <div class="auth-modal-backdrop" data-close="1"></div>
+  <div class="auth-modal-card" role="dialog" aria-modal="true" aria-label="Login">
+    <div class="auth-modal-head">
+      <div>
+        <div class="auth-title">Subscriber Login</div>
+        <div class="auth-sub">Log in to unlock Tracker, History, and all bets.</div>
+      </div>
+      <button id="authClose" class="auth-x" aria-label="Close">✕</button>
+    </div>
+
+    <div class="auth-row">
+      <label class="auth-label" for="authEmail">Email</label>
+      <input id="authEmail" class="auth-input" type="email" autocomplete="email" placeholder="you@example.com"/>
+    </div>
+
+    <div class="auth-row">
+      <label class="auth-label" for="authPassword">Password</label>
+      <input id="authPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••"/>
+    </div>
+
+    <div class="auth-actions">
+      <button id="btnLogin" class="auth-btn primary">Log in</button>
+      <button id="btnSignup" class="auth-btn">Sign up</button>
+      <button id="btnMagic" class="auth-btn">Magic link</button>
+    </div>
+
+    <div id="authMsg" class="auth-msg" aria-live="polite"></div>
+
+    <div class="auth-divider"></div>
+    <div class="auth-foot">
+      <button id="btnLogout" class="auth-link" style="display:none;">Log out</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

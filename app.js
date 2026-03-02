@@ -3,59 +3,184 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-function pad2(n){return String(n).padStart(2,'0');}
-function toLocalYMD(d=new Date()){
-  const yr=d.getFullYear();
-  const mo=pad2(d.getMonth()+1);
-  const da=pad2(d.getDate());
-  return `${yr}-${mo}-${da}`;
-}
-function normalizeDateOnly(value){
-  if(!value) return null;
-  if(typeof value==='string'){
-    if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-    const dt=new Date(value);
-    if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
-    return null;
+
+// ===== Paywall (Free 10) + Subscriber Role =====
+const FREE_BETS_LIMIT = 10;
+
+let currentUser = null;
+let currentProfile = null;
+let isSubscriber = false;
+
+function nowISO(){ return new Date().toISOString(); }
+
+function computeSubscriber(profile){
+  if(!profile) return false;
+  if(profile.is_subscriber === true) return true;
+  if(profile.trial_ends_at){
+    const t = new Date(profile.trial_ends_at);
+    if(!Number.isNaN(t.getTime()) && new Date() < t) return true;
   }
-  const dt=new Date(value);
-  if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
-  return null;
-}
-function isValueBetActiveToday(row){
-  const today=toLocalYMD(new Date());
-  const start=normalizeDateOnly(row.bet_date) || normalizeDateOnly(row.created_at);
-  const end=normalizeDateOnly(row.bet_end_date) || start;
-  if(!start) return false;
-  return today >= start && today <= end;
+  return false;
 }
 
-
-// ===== Layout Mode (Compact / Wide) =====
-const btnCompact = document.getElementById("btnCompact");
-const btnWide = document.getElementById("btnWide");
-
-function applyLayout(mode){
-  document.body.classList.remove("layout-compact","layout-wide");
-  document.body.classList.add(mode === "wide" ? "layout-wide" : "layout-compact");
-  localStorage.setItem("layout_mode", mode);
-  if(btnCompact) btnCompact.classList.toggle("active", mode !== "wide");
-  if(btnWide) btnWide.classList.toggle("active", mode === "wide");
-}
-
-(function initLayoutMode(){
-  const saved = localStorage.getItem("layout_mode");
-  if(saved === "wide" || saved === "compact"){
-    applyLayout(saved);
-  }else{
-    // Default: compact on small screens, wide on desktop
-    applyLayout(window.innerWidth >= 950 ? "wide" : "compact");
+async function loadProfile(){
+  const { data: sess } = await client.auth.getSession();
+  currentUser = sess?.session?.user || null;
+  if(!currentUser){
+    currentProfile = null;
+    isSubscriber = false;
+    return;
   }
-  if(btnCompact) btnCompact.addEventListener("click", ()=>applyLayout("compact"));
-  if(btnWide) btnWide.addEventListener("click", ()=>applyLayout("wide"));
+  // Fetch profile row
+  const { data, error } = await client
+    .from("profiles")
+    .select("id,email,is_subscriber,trial_ends_at,created_at")
+    .eq("id", currentUser.id)
+    .maybeSingle();
+
+  if(error){
+    console.warn("profiles read error:", error.message);
+    currentProfile = null;
+    isSubscriber = false;
+    return;
+  }
+  currentProfile = data || null;
+  isSubscriber = computeSubscriber(currentProfile);
+}
+
+function setPaywallBanner(html){
+  const el = document.getElementById("paywallBanner");
+  if(!el) return;
+  if(!html){
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+  el.style.display = "flex";
+  el.innerHTML = html;
+}
+
+function openAuthModal(){
+  const m = document.getElementById("authModal");
+  if(!m) return;
+  m.style.display = "flex";
+  m.setAttribute("aria-hidden","false");
+}
+function closeAuthModal(){
+  const m = document.getElementById("authModal");
+  if(!m) return;
+  m.style.display = "none";
+  m.setAttribute("aria-hidden","true");
+}
+
+async function refreshGateUI(){
+  await loadProfile();
+
+  // Tabs lock: Tracker + History locked unless subscriber
+  const tTracker = document.getElementById("tabTracker");
+  const tHistory = document.getElementById("tabHistory");
+  const lockText = "🔒 Subscribers only";
+  if(tTracker){
+    tTracker.dataset.locked = (!isSubscriber).toString();
+    tTracker.title = (!isSubscriber) ? lockText : "";
+  }
+  if(tHistory){
+    tHistory.dataset.locked = (!isSubscriber).toString();
+    tHistory.title = (!isSubscriber) ? lockText : "";
+  }
+
+  // Banner (Value Bets)
+  if(isSubscriber){
+    let extra = "";
+    if(currentProfile?.trial_ends_at && currentProfile?.is_subscriber !== true){
+      extra = ` <span style="opacity:.85;">(Trial ends ${new Date(currentProfile.trial_ends_at).toLocaleDateString()})</span>`;
+    }
+    setPaywallBanner(`
+      <div class="pw-left">✅ Full access unlocked${extra}</div>
+      <div class="pw-actions">
+        <button class="pw-btn" id="pwLogout" style="${currentUser ? "" : "display:none;"}">Log out</button>
+      </div>
+    `);
+    const b = document.getElementById("pwLogout");
+    if(b) b.onclick = async ()=>{ await client.auth.signOut(); await refreshGateUI(); };
+    return;
+  }
+
+  // Not subscriber (guest or logged-in non-subscriber)
+  const loggedIn = !!currentUser;
+  const trialActive = currentProfile?.trial_ends_at && new Date(currentProfile.trial_ends_at) > new Date();
+  const msg = loggedIn
+    ? `Free preview: first <strong>${FREE_BETS_LIMIT}</strong> bets only. Subscribe to unlock the rest.`
+    : `Free preview: first <strong>${FREE_BETS_LIMIT}</strong> bets only. Log in for more + subscriber access.`;
+
+  const actions = `
+    <button class="pw-btn primary" id="pwLogin">${loggedIn ? "Switch account" : "Log in / Sign up"}</button>
+    <button class="pw-btn warn" id="pwTrial" style="${loggedIn && !trialActive ? "" : "display:none;"}">Claim 1‑month trial (first 10)</button>
+  `;
+
+  setPaywallBanner(`
+    <div class="pw-left">${msg}</div>
+    <div class="pw-actions">${actions}</div>
+  `);
+
+  const l = document.getElementById("pwLogin");
+  if(l) l.onclick = ()=>openAuthModal();
+
+  const t = document.getElementById("pwTrial");
+  if(t) t.onclick = async ()=>{
+    t.disabled = true;
+    try{
+      const { error } = await client.rpc("claim_trial");
+      if(error) throw error;
+      await refreshGateUI();
+      // refresh lists
+      try{ await loadBets(); }catch(e){}
+    }catch(e){
+      alert(e?.message || "Could not claim trial.");
+    }finally{
+      t.disabled = false;
+    }
+  };
+}
+
+// Intercept tab clicks for locked tabs
+function wireTabLocks(){
+  const tTracker = document.getElementById("tabTracker");
+  const tHistory = document.getElementById("tabHistory");
+  const handler = (e)=>{
+    if(isSubscriber) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openAuthModal();
+  };
+  if(tTracker){
+    tTracker.addEventListener("click", (e)=>{
+      if(tTracker.dataset.locked === "true") handler(e);
+    }, true);
+  }
+  if(tHistory){
+    tHistory.addEventListener("click", (e)=>{
+      if(tHistory.dataset.locked === "true") handler(e);
+    }, true);
+  }
+}
+
+// Auth modal wiring
+(function initAuthModal(){
+  const m = document.getElementById("authModal");
+  if(m){
+    m.addEventListener("click", (e)=>{
+      const tgt = e.target;
+      if(tgt && tgt.getAttribute && tgt.getAttribute("data-close") === "1") closeAuthModal();
+    });
+  }
+  const x = document.getElementById("authClose");
+  if(x) x.addEventListener("click", closeAuthModal);
 })();
 
-// (Install App / PWA install button removed for now)
+
+// ===== End Paywall (Free 10) + Subscriber Role =====
+
 
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
@@ -70,10 +195,13 @@ const profitCard=document.getElementById("profitCard");
 const addedKeys = new Set();
 
 function makeBetKey(row){
-  const match = (row?.match ?? "").toString().trim();
-  const market = (row?.market ?? "").toString().trim();
-  const odds = (row?.odds ?? "").toString().trim();
-  return `k:${match}|${market}|${odds}`;
+  // Prefer stable IDs if present
+  if(row && row.id != null) return `id:${row.id}`;
+  const m = row?.match ?? '';
+  const mk = row?.market ?? '';
+  const o = row?.odds ?? '';
+  const d = row?.bet_date ?? row?.match_date ?? row?.created_at ?? '';
+  return `k:${m}|${mk}|${o}|${d}`;
 }
 
 // Top navigation tabs
@@ -89,9 +217,8 @@ if(historyListEl){
     const dayKey = btn.dataset.day;
     if(!dayKey) return;
     // Daily History accordion: default collapsed, store open state per day.
-    window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
+    window.__historyOpen = window.__historyOpen || {};
     window.__historyOpen[dayKey] = !window.__historyOpen[dayKey];
-    localStorage.setItem('history_open', JSON.stringify(window.__historyOpen));
     renderHistory();
   });
 }
@@ -145,12 +272,8 @@ async function loadBets(){
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
-const betsTable=document.getElementById('betsTable');
-const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
-if(betsTbody) betsTbody.innerHTML = "";
-const active=(data||[]).filter(isValueBetActiveToday);
-if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
- (active || []).forEach(row=>{
+if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets found in value_bets_feed.</div>`; return; }
+ (data || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -168,25 +291,6 @@ betsGrid.innerHTML+=`
     <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
-
-  // Desktop table row (shown via CSS in WIDE mode on large screens)
-  if(betsTbody){
-    const betDate = row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '');
-    const val = (row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value);
-    const valTxt = val != null ? Number(val).toFixed(1)+'%' : '—';
-    betsTbody.innerHTML += `
-      <tr>
-        <td><b>${escapeHtml(row.match||'')}</b></td>
-        <td>${escapeHtml(row.market||'')}</td>
-        <td><span class="pill">${escapeHtml(String(row.odds??''))}</span></td>
-        <td><span class="pill">${escapeHtml(valTxt)}</span></td>
-        <td>${escapeHtml(betDate)}</td>
-        <td>
-          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
-        </td>
-      </tr>
-    `;
-  }
 });
 }
 
@@ -205,7 +309,7 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-        stake: 10,
+    stake: 10,
     result: "pending"
   };
 
@@ -218,10 +322,8 @@ async function addToTracker(btn, row){
     console.error("Insert failed:", error);
     if(btn){
       btn.disabled = false;
-      btn.textContent = "Add";
+      btn.textContent = 'Add';
     }
-    // Quick visible feedback (mobile)
-    try{ alert("Could not add bet. Check tracker table columns / RLS."); }catch(e){}
     return;
   }
 
@@ -440,7 +542,7 @@ function renderHistory(){
   const rows = Array.isArray(trackerRowsCache) ? trackerRowsCache : [];
   const groups = {};
   for(const b of rows){
-    const dayKey = dayKeyFromRow(b);
+    const dayKey = (b.created_at || "").slice(0,10);
     if(!dayKey) continue;
     (groups[dayKey] ||= []).push(b);
   }
@@ -448,7 +550,7 @@ function renderHistory(){
   const dayKeys = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
   historySummaryEl.innerHTML = "";
 
-  window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
+  window.__historyOpen = window.__historyOpen || {};
 
   const fmtDay = (dayKey)=>{
     const d = new Date(dayKey + "T00:00:00");
@@ -485,7 +587,6 @@ function renderHistory(){
 
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
-    const winrate = settled ? Math.round((won / settled) * 100) : 0;
 
     const collapsed = !window.__historyOpen[dayKey];
 
@@ -493,22 +594,19 @@ function renderHistory(){
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
         <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
           <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
-
-          <div class="daily-toggle-center">
-            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
-            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-          </div>
-
           <div class="daily-toggle-right">
-            <div class="history-ratio-wrap">
-              <span class="history-day-ratio">${ratio}</span>
-              <span class="history-winrate ${winrate>=70 ? "wr-hot" : winrate>=55 ? "wr-good" : winrate>=40 ? "wr-mid" : "wr-bad"}">${winrate>=70 ? "🔥 " : ""}Winrate ${winrate}%</span>
-            </div>
+            <span class="history-day-ratio">${ratio}</span>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-          <div class="history-day-bets">
+
+        <div class="history-day-chips day-stats">
+          <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
+          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+        </div>
+
+        <div class="history-day-bets">
           <div class="history-table-wrap">
             <table class="history-table">
               <thead>
@@ -597,10 +695,6 @@ const {data}=await client.from("bet_tracker").select("*").order("created_at",{as
 const rows = data || [];
 trackerRowsCache = rows;
 trackerAllRows = rows;
-
-// Keep Value Bets \"Added\" state synced with tracker rows
-addedKeys.clear();
-rows.forEach(r => addedKeys.add(makeBetKey(r)));
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);
@@ -794,121 +888,8 @@ a.click();
 });
 }
 
-// App init is now gated behind subscriber auth (so we don't load private data
-// before a user logs in).
-let __appInitialized = false;
-async function initAppOnce(){
-  if(__appInitialized) return;
-  __appInitialized = true;
-  await loadBets();
-  await loadTracker();
-}
-
-function setLocked(locked){
-  document.body.classList.toggle("locked", !!locked);
-  // Show logout button only when authenticated
-  const logoutBtn = document.getElementById("btnLogout");
-  if (logoutBtn) logoutBtn.style.display = locked ? "none" : "inline-flex";
-}
-
-async function initAuthGate(){
-  // Default to locked to avoid flicker of private content
-  setLocked(true);
-
-  const msgEl = document.getElementById("authMsg");
-  const setMsg = (t)=>{ if(msgEl){ msgEl.textContent = t || ""; } };
-
-  const emailEl = document.getElementById("authEmail");
-  const passEl  = document.getElementById("authPassword");
-  const btnLogin  = document.getElementById("btnLogin");
-  const btnSignup = document.getElementById("btnSignup");
-
-  // If the gate UI isn't present, just unlock and run.
-  if(!emailEl || !passEl || !btnLogin){
-    setLocked(false);
-    await initAppOnce();
-    return;
-  }
-
-  const { data: { session } } = await client.auth.getSession();
-  if(session){
-    setLocked(false);
-    await initAppOnce();
-  }else{
-    setMsg("Please log in to view subscriber content.");
-  }
-
-  btnLogin.addEventListener("click", async ()=>{
-    try{
-      setMsg("Logging in...");
-      const email = (emailEl.value || "").trim();
-      const password = passEl.value || "";
-      const { error } = await client.auth.signInWithPassword({ email, password });
-      if(error) throw error;
-      setLocked(false);
-      setMsg("");
-      await initAppOnce();
-    }catch(e){
-      setLocked(true);
-      setMsg(e?.message || "Login failed.");
-    }
-  });
-
-  if(btnSignup){
-    btnSignup.addEventListener("click", async ()=>{
-      try{
-        setMsg("Creating account...");
-        const email = (emailEl.value || "").trim();
-        const password = passEl.value || "";
-        const { error } = await client.auth.signUp({
-          email,
-          password,
-          options: {
-            // Helps Supabase email-confirm links return users back to your site
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if(error) throw error;
-        // Depending on your Supabase Auth settings, users may need email confirmation.
-        // If confirmation is OFF, they'll be logged in immediately.
-        const { data: { session } } = await client.auth.getSession();
-        if(session){
-          setLocked(false);
-          setMsg("");
-          await initAppOnce();
-        }else{
-          setLocked(true);
-          setMsg("Check your email to confirm your account, then log in.");
-        }
-      }catch(e){
-        setLocked(true);
-        setMsg(e?.message || "Sign up failed.");
-      }
-    });
-  }
-
-  // If the user logs in/out in another tab, keep UI in sync.
-  client.auth.onAuthStateChange(async (_event, newSession)=>{
-    if(newSession){
-      setLocked(false);
-      await initAppOnce();
-    }else{
-      setLocked(true);
-      setMsg("Please log in to view subscriber content.");
-    }
-  });
-
-  // Logout button (shows when logged in)
-  const logoutBtn = document.getElementById("btnLogout");
-  if (logoutBtn && !logoutBtn.dataset.bound) {
-    logoutBtn.dataset.bound = "1";
-    logoutBtn.addEventListener("click", async ()=>{
-      try { await client.auth.signOut(); } catch(e) {}
-      setLocked(true);
-      setMsg("Logged out.");
-    });
-  }
-}
+loadBets();
+loadTracker();
 
 
 // Toggle with animation + memory
@@ -939,9 +920,6 @@ document.addEventListener("DOMContentLoaded",function(){
     wrapper.classList.add("expanded");
     arrow.innerText="▲";
   }
-
-  // Subscriber auth gate (shows login/sign-up overlay if not logged in)
-  initAuthGate();
 });
 
 // Extend loadTracker to update bet count
@@ -1182,3 +1160,117 @@ if(startingInput){
     localStorage.setItem("starting_bankroll", this.value);
   });
 }
+
+
+
+// ===== Auth Modal Handlers =====
+const authEmail = document.getElementById("authEmail");
+const authPassword = document.getElementById("authPassword");
+const btnLogin = document.getElementById("btnLogin");
+const btnSignup = document.getElementById("btnSignup");
+const btnMagic = document.getElementById("btnMagic");
+const btnLogout = document.getElementById("btnLogout");
+const authMsg = document.getElementById("authMsg");
+
+function setAuthMsg(msg){
+  if(authMsg) authMsg.textContent = msg || "";
+}
+
+async function ensureProfileRow(user){
+  if(!user) return;
+  // create profile row if missing (safe upsert)
+  await client.from("profiles").upsert({
+    id: user.id,
+    email: user.email || null
+  }, { onConflict: "id" });
+}
+
+async function doLogin(){
+  const email = (authEmail?.value || "").trim();
+  const password = (authPassword?.value || "").trim();
+  if(!email || !password){ setAuthMsg("Enter email and password."); return; }
+  if(btnLogin) btnLogin.disabled = true;
+  setAuthMsg("Logging in…");
+  try{
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if(error) throw error;
+    await ensureProfileRow(data?.user);
+    setAuthMsg("");
+    closeAuthModal();
+    await refreshGateUI();
+    try{ await loadBets(); }catch(e){}
+    if(isSubscriber){
+      try{ await loadTracker(); }catch(e){}
+      try{ await loadHistory(); }catch(e){}
+    }
+  }catch(e){
+    setAuthMsg(e?.message || "Login failed.");
+  }finally{
+    if(btnLogin) btnLogin.disabled = false;
+  }
+}
+
+async function doSignup(){
+  const email = (authEmail?.value || "").trim();
+  const password = (authPassword?.value || "").trim();
+  if(!email || !password){ setAuthMsg("Enter email and password."); return; }
+  if(btnSignup) btnSignup.disabled = true;
+  setAuthMsg("Creating account…");
+  try{
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin }
+    });
+    if(error) throw error;
+    await ensureProfileRow(data?.user);
+    // With email confirm ON, session is usually null:
+    setAuthMsg("Check your email to confirm your account, then log in.");
+  }catch(e){
+    setAuthMsg(e?.message || "Sign up failed.");
+  }finally{
+    if(btnSignup) btnSignup.disabled = false;
+  }
+}
+
+async function doMagic(){
+  const email = (authEmail?.value || "").trim();
+  if(!email){ setAuthMsg("Enter your email first."); return; }
+  if(btnMagic) btnMagic.disabled = true;
+  setAuthMsg("Sending magic link…");
+  try{
+    const { error } = await client.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin }
+    });
+    if(error) throw error;
+    setAuthMsg("Check your email for the login link.");
+  }catch(e){
+    setAuthMsg(e?.message || "Could not send magic link.");
+  }finally{
+    if(btnMagic) btnMagic.disabled = false;
+  }
+}
+
+async function doLogout(){
+  setAuthMsg("Logging out…");
+  try{ await client.auth.signOut(); }catch(e){}
+  setAuthMsg("");
+  await refreshGateUI();
+}
+
+if(btnLogin) btnLogin.addEventListener("click", doLogin);
+if(btnSignup) btnSignup.addEventListener("click", doSignup);
+if(btnMagic) btnMagic.addEventListener("click", doMagic);
+if(btnLogout) btnLogout.addEventListener("click", doLogout);
+
+client.auth.onAuthStateChange(async ()=>{
+  await refreshGateUI();
+});
+
+// init
+window.addEventListener("load", async ()=>{
+  await refreshGateUI();
+  wireTabLocks();
+});
+// ===== End Auth Modal Handlers =====
