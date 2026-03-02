@@ -58,83 +58,117 @@ function applyLayout(mode){
 
 let __deferredInstallPrompt = null;
 
+function __isStandalone(){
+  return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || (window.navigator && window.navigator.standalone);
+}
+
 function __showInstallToast(msg){
   try{
-    let t = document.getElementById('installToast');
+    let t = document.getElementById("installToast");
     if(!t){
-      t = document.createElement('div');
-      t.id = 'installToast';
-      t.style.position = 'fixed';
-      t.style.left = '50%';
-      t.style.bottom = '24px';
-      t.style.transform = 'translateX(-50%)';
-      t.style.background = 'rgba(20,24,32,.92)';
-      t.style.border = '1px solid rgba(255,255,255,.14)';
-      t.style.color = '#e9edf5';
-      t.style.padding = '10px 14px';
-      t.style.borderRadius = '14px';
-      t.style.fontSize = '14px';
-      t.style.zIndex = '9999';
-      t.style.maxWidth = '92vw';
-      t.style.textAlign = 'center';
-      t.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)';
-      t.style.opacity = '0';
-      t.style.transition = 'opacity .18s ease';
+      t = document.createElement("div");
+      t.id = "installToast";
+      t.style.position = "fixed";
+      t.style.left = "50%";
+      t.style.bottom = "24px";
+      t.style.transform = "translateX(-50%)";
+      t.style.background = "rgba(20,24,32,.92)";
+      t.style.border = "1px solid rgba(255,255,255,.14)";
+      t.style.color = "#e9edf5";
+      t.style.padding = "10px 14px";
+      t.style.borderRadius = "14px";
+      t.style.fontSize = "14px";
+      t.style.zIndex = "9999";
+      t.style.maxWidth = "92vw";
+      t.style.textAlign = "center";
+      t.style.boxShadow = "0 10px 30px rgba(0,0,0,.35)";
+      t.style.opacity = "0";
+      t.style.transition = "opacity .18s ease";
       document.body.appendChild(t);
     }
     t.textContent = msg;
-    t.style.opacity = '1';
+    t.style.opacity = "1";
     clearTimeout(window.__installToastTimer);
-    window.__installToastTimer = setTimeout(()=>{ t.style.opacity = '0'; }, 2200);
+    window.__installToastTimer = setTimeout(()=>{ t.style.opacity = "0"; }, 2600);
   }catch(_){/* noop */}
 }
 
-// Keep the button visible.
-// Some browsers won't fire `beforeinstallprompt` immediately (or at all on iOS),
-// so hiding it makes it look like it's missing/broken.
-if(btnInstall){
-  btnInstall.style.display = 'inline-flex';
-  btnInstall.disabled = false;
+function __setInstallButtonState(state){
+  if(!btnInstall) return;
+  btnInstall.style.display = "inline-flex";
+
+  if(state === "installed"){
+    btnInstall.disabled = true;
+    btnInstall.textContent = "Installed";
+    btnInstall.title = "Already installed";
+    return;
+  }
+
+  if(state === "ready"){
+    btnInstall.disabled = false;
+    btnInstall.textContent = "Install App";
+    btnInstall.title = "Install this app";
+    return;
+  }
+
+  // preparing
+  btnInstall.disabled = true;
+  btnInstall.textContent = "Install App";
+  btnInstall.title = "Preparing install…";
 }
 
-window.addEventListener('beforeinstallprompt', (e)=>{
-  // Chrome/Edge on Android/desktop
+// Initial state
+if(btnInstall){
+  __setInstallButtonState(__isStandalone() ? "installed" : "preparing");
+}
+
+window.addEventListener("beforeinstallprompt", (e)=>{
+  // Chrome/Edge: store the event so we can trigger the prompt from our button.
   e.preventDefault();
   __deferredInstallPrompt = e;
-  if(btnInstall){
-    btnInstall.style.display = 'inline-flex';
-    btnInstall.disabled = false;
-  }
+  __setInstallButtonState("ready");
 });
 
-window.addEventListener('appinstalled', ()=>{
+window.addEventListener("appinstalled", ()=>{
   __deferredInstallPrompt = null;
-  if(btnInstall){
-    btnInstall.disabled = true;
-    btnInstall.textContent = 'Installed';
-  }
+  __setInstallButtonState("installed");
 });
 
 if(btnInstall){
-  btnInstall.addEventListener('click', async ()=>{
+  btnInstall.addEventListener("click", async ()=>{
+    if(__isStandalone()){
+      __setInstallButtonState("installed");
+      return;
+    }
+
+    // We cannot force-install unless the browser fired beforeinstallprompt.
     if(!__deferredInstallPrompt){
-      // Either already installed, not supported (iOS Safari), or criteria not met yet.
       const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
       if(isIOS){
-        __showInstallToast('On iPhone/iPad: Share → Add to Home Screen');
+        __showInstallToast("On iPhone/iPad: Share → Add to Home Screen");
       }else{
-        __showInstallToast('Install not available yet. Try refresh, or Chrome ⋮ → Install app / Add to Home screen');
+        let hasSW = false;
+        try{ hasSW = !!(navigator.serviceWorker && await navigator.serviceWorker.getRegistration()); }catch(_){}
+        if(!hasSW){
+          __showInstallToast("Install not ready: service worker not active. Refresh once.");
+        }else{
+          __showInstallToast("Install not ready yet. Refresh once, or Chrome ⋮ → Install app / Add to Home screen");
+        }
       }
       return;
     }
-    btnInstall.disabled = true;
+
     try{
       __deferredInstallPrompt.prompt();
-      await __deferredInstallPrompt.userChoice;
-    }catch(_){/* noop */}
-    __deferredInstallPrompt = null;
-    btnInstall.disabled = true;
-    btnInstall.textContent = 'Installed';
+      const choice = await __deferredInstallPrompt.userChoice;
+      if(choice && choice.outcome === "dismissed"){
+        __setInstallButtonState("ready");
+      }
+    }catch(_){
+      __setInstallButtonState("ready");
+    }finally{
+      __deferredInstallPrompt = null;
+    }
   });
 }
 

@@ -1383,3 +1383,6 @@ body.layout-wide .bets-grid{
   /* On phones, Compact/Wide toggle still works, but don't force huge paddings */
   body.layout-wide{ --app-pad: 14px; }
 }
+
+.btn-install:disabled{ opacity: .55; cursor: not-allowed; }
+
