@@ -1,99 +1,7 @@
 
-
-// Supabase config: you can override in index.html via window.__SUPABASE_URL / window.__SUPABASE_KEY
-// or by setting localStorage SUPABASE_URL / SUPABASE_KEY in the browser console.
-const DEFAULT_SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
-const DEFAULT_SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
-const SUPABASE_URL=(window.__SUPABASE_URL||localStorage.getItem('SUPABASE_URL')||DEFAULT_SUPABASE_URL).trim();
-const SUPABASE_KEY=(window.__SUPABASE_KEY||localStorage.getItem('SUPABASE_KEY')||DEFAULT_SUPABASE_KEY).trim();
+const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
+const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
-async function _checkSupabaseConfig(){
-  try{
-    const { error } = await client.from('value_bets_feed_preview').select('id').limit(1);
-    if(error){
-      console.warn('Supabase config check failed:', error);
-      window.__SUPABASE_CONFIG_ERROR = error;
-    }
-  }catch(e){
-    console.warn('Supabase config check exception:', e);
-    window.__SUPABASE_CONFIG_ERROR = e;
-  }
-}
-_checkSupabaseConfig();
-
-
-
-// --- Subscriber auth / access state ---
-let session = null;
-let accessActive = false;
-
-function escapeHTML(str){
-  return String(str ?? '').replace(/[&<>"]+/g, (ch)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[ch]||ch));
-}
-
-function showMsg(text,isError=false){
-  const el=document.getElementById('authMsg');
-  if(!el) return;
-  el.textContent=text||'';
-  el.style.color=isError?'#ffb4b4':'#eaf6f4';
-}
-
-function setAuthButton(){
-  const btn=document.getElementById('authButton');
-  if(!btn) return;
-  btn.textContent = session ? 'Account' : 'Log in';
-}
-
-function openAuthModal(){
-  const m=document.getElementById('authModal');
-  if(!m) return;
-  m.classList.remove('hidden');
-  m.setAttribute('aria-hidden','false');
-  const logout=document.getElementById('btnLogout');
-  if(logout) logout.classList.toggle('hidden', !session);
-  showMsg('');
-}
-
-function closeAuthModal(){
-  const m=document.getElementById('authModal');
-  if(!m) return;
-  m.classList.add('hidden');
-  m.setAttribute('aria-hidden','true');
-}
-
-function renderSubscriptionGate(){
-  const gate=document.getElementById('subscriptionGate');
-  if(!gate) return;
-  if(session && accessActive){
-    gate.innerHTML = '<div class="gate-card">✅ <strong>Subscriber access active</strong>. Full feed unlocked.</div>';
-    return;
-  }
-  gate.innerHTML = `
-    <div class="gate-card">
-      <div><strong>Free preview:</strong> first 10 bets today.</div>
-      <div style="margin-top:6px; opacity:.9">Log in to unlock the rest. Everyone gets a 5‑day free trial. The £5 first month offer is limited to the first 50 people.</div>
-      <div class="gate-actions">
-        <button class="auth-btn" id="gateLoginBtn">Log in / Sign up</button>
-        <button class="auth-btn" id="gateTrialBtn">Start 5‑day trial</button>
-      </div>
-    </div>`;
-  document.getElementById('gateLoginBtn')?.addEventListener('click', openAuthModal);
-  document.getElementById('gateTrialBtn')?.addEventListener('click', openAuthModal);
-}
-
-async function refreshSessionAndAccess(){
-  const { data } = await client.auth.getSession();
-  session = data?.session ?? null;
-  setAuthButton();
-  if(session){
-    const { data: ok, error } = await client.rpc('has_active_access', { p_user: session.user.id });
-    accessActive = !error && !!ok;
-  }else{
-    accessActive = false;
-  }
-  renderSubscriptionGate();
-}
 
 function pad2(n){return String(n).padStart(2,'0');}
 function toLocalYMD(d=new Date()){
@@ -102,12 +10,6 @@ function toLocalYMD(d=new Date()){
   const da=pad2(d.getDate());
   return `${yr}-${mo}-${da}`;
 }
-
-// Local YYYY-MM-DD (used for "today" filtering)
-function getTodayDate(){
-  return toLocalYMD(new Date());
-}
-
 function normalizeDateOnly(value){
   if(!value) return null;
   if(typeof value==='string'){
@@ -164,12 +66,6 @@ const lossesElem=document.getElementById("losses");
 const avgOddsElem=document.getElementById("avgOdds");
 const profitCard=document.getElementById("profitCard");
 
-
-
-// Value Bets containers (cards + wide table)
-const betsGrid = document.getElementById("betsGrid");
-const betsTableEl = document.getElementById("betsTable");
-const betsTableBody = betsTableEl ? betsTableEl.querySelector("tbody") : null;
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
 
@@ -231,15 +127,10 @@ function switchTab(tab){
 
 
 async function loadBets(){
-  // If the containers aren't present, nothing to render.
-  if(!betsGrid && !betsTableBody) return;
-
-  // Loading state
-  if(betsGrid) betsGrid.innerHTML = '<div class="card">Loading bets…</div>';
-  if(betsTableBody) betsTableBody.innerHTML = '<tr><td colspan="6">Loading bets…</td></tr>';
-
-  // Rebuild "Added" state from tracker so it survives refresh.
+  // Rebuild "Added" state from tracker every time we render the feed.
+  // This ensures that if a bet is deleted from the tracker, the feed button returns to "Add".
   addedKeys.clear();
+  // Preload tracker rows so already-added bets render as "Added"
   try{
     const { data: tdata, error: terr } = await client
       .from("bet_tracker")
@@ -249,150 +140,55 @@ async function loadBets(){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
     }
   }catch(e){
-    // ignore
+    // Ignore preload failures
   }
 
-  const today = getTodayDate();
-  let rows = [];
+const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+betsGrid.innerHTML="";
+const betsTable=document.getElementById('betsTable');
+const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
+if(betsTbody) betsTbody.innerHTML = "";
+const active=(data||[]).filter(isValueBetActiveToday);
+if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
+ (active || []).forEach(row=>{
+  const key = makeBetKey(row);
+  const isAdded = addedKeys.has(key);
+betsGrid.innerHTML+=`
+<div class="card bet-card ${row.high_value ? 'bet-card--hv' : ''}">
+  <h3 class="bet-title">${row.match}</h3>
+  <div class="bet-meta">
+    <span class="bet-market">${row.market}</span>
+    <span class="bet-date">${row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
+  </div>
+  <div class="bet-stats">
+    <span class="stat-chip"><span class="stat-chip__k">Value</span><span class="stat-chip__v">${(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value) != null ? Number(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value).toFixed(1)+'%' : '—'}</span></span>
+  </div>
+  <div class="bet-footer">
+    <span class="odds-badge">Odds <strong>${row.odds}</strong></span>
+    <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
+  </div>
+</div>`;
 
-  // 1) Fetch the feed
-  try{
-    if(!session || !accessActive){
-      // Free users: try RPC first (if you created it), otherwise fall back to preview table
-      const rpcRes = await client.rpc("get_public_value_bets", { p_date: today, p_limit: 10 });
-      if(rpcRes?.error){
-        const fb = await client
-          .from("value_bets_feed_preview")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(25);
-        if(fb.error) throw fb.error;
-        rows = fb.data || [];
-      }else{
-        rows = rpcRes.data || [];
-      }
-    }else{
-      // Subscribers: full feed
-      let res = await client
-        .from("value_bets_feed")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(400);
-
-      // fallback if created_at not present
-      if(res.error){
-        res = await client
-          .from("value_bets_feed")
-          .select("*")
-          .order("id", { ascending: false })
-          .limit(400);
-      }
-      if(res.error) throw res.error;
-      rows = res.data || [];
-    }
-  }catch(err){
-    console.error("loadBets fetch failed:", err);
-    if(betsGrid) betsGrid.innerHTML = '<div class="card">Could not load bets.</div>';
-    if(betsTableBody) betsTableBody.innerHTML = '<tr><td colspan="6">Could not load bets.</td></tr>';
-    renderSubscriptionGate();
-    return;
+  // Desktop table row (shown via CSS in WIDE mode on large screens)
+  if(betsTbody){
+    const betDate = row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '');
+    const val = (row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value);
+    const valTxt = val != null ? Number(val).toFixed(1)+'%' : '—';
+    betsTbody.innerHTML += `
+      <tr>
+        <td><b>${escapeHtml(row.match||'')}</b></td>
+        <td>${escapeHtml(row.market||'')}</td>
+        <td><span class="pill">${escapeHtml(String(row.odds??''))}</span></td>
+        <td><span class="pill">${escapeHtml(valTxt)}</span></td>
+        <td>${escapeHtml(betDate)}</td>
+        <td>
+          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
+        </td>
+      </tr>
+    `;
   }
-
-  // 2) Normalize columns (feed tables can differ)
-  const normalized = (rows || []).map(r => ({
-    id: r.id ?? r.bet_id ?? r.uuid ?? r.created_at ?? Math.random().toString(16).slice(2),
-    match: r.match ?? r.fixture ?? r.game ?? r.event ?? r.title ?? "",
-    market: r.market ?? r.selection ?? r.bet ?? r.tip ?? r.pick ?? "",
-    odds: r.odds ?? r.price ?? r.odd ?? r.odds_decimal ?? "",
-    value_pct: r.value_pct ?? r.value_percent ?? r.value_percentage ?? r.value ?? r.edge ?? null,
-    bet_date: r.bet_date ?? r.match_date ?? r.date ?? r.betDate ?? r.day ?? r.created_at ?? null,
-    bet_end_date: r.bet_end_date ?? r.end_date ?? null,
-    high_value: !!(r.high_value ?? r.is_high_value ?? false),
-    _raw: r
-  }));
-
-  // 3) Prefer showing "active today" if we can determine it
-  const activeToday = normalized.filter(isValueBetActiveToday);
-  const list = (activeToday.length ? activeToday : normalized);
-
-  // Sort: highest value first (if present), then newest
-  list.sort((a,b)=>{
-    const av = (a.value_pct == null || a.value_pct === "") ? -Infinity : Number(a.value_pct);
-    const bv = (b.value_pct == null || b.value_pct === "") ? -Infinity : Number(b.value_pct);
-    if(bv !== av) return bv - av;
-    return String(b.bet_date || "").localeCompare(String(a.bet_date || ""));
-  });
-
-  if(!list.length){
-    if(betsGrid) betsGrid.innerHTML = '<div class="card">No bets found.</div>';
-    if(betsTableBody) betsTableBody.innerHTML = '<tr><td colspan="6">No bets found.</td></tr>';
-    renderSubscriptionGate();
-    return;
-  }
-
-  // 4) Render cards (compact/mobile)
-  if(betsGrid){
-    betsGrid.innerHTML = "";
-    list.forEach(row=>{
-      const key = makeBetKey(row);
-      const isAdded = addedKeys.has(key);
-      const dateLabel = row.bet_date ? new Date(row.bet_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : "";
-      const valueLabel = (row.value_pct != null && row.value_pct !== "" && !Number.isNaN(Number(row.value_pct)))
-        ? (Number(row.value_pct).toFixed(1) + "%")
-        : "—";
-
-      // addToTracker expects match/market/odds
-      const safeRow = { match: row.match, market: row.market, odds: row.odds, bet_date: row.bet_date, created_at: row._raw?.created_at };
-
-      betsGrid.innerHTML += `
-        <div class="card bet-card ${row.high_value ? 'bet-card--hv' : ''}">
-          <h3 class="bet-title">${escapeHtml(row.match)}</h3>
-          <div class="bet-meta">
-            <span class="bet-market">${escapeHtml(row.market)}</span>
-            <span class="bet-date">${escapeHtml(dateLabel)}</span>
-          </div>
-          <div class="bet-stats">
-            <span class="stat-chip"><span class="stat-chip__k">Value</span><span class="stat-chip__v">${escapeHtml(valueLabel)}</span></span>
-          </div>
-          <div class="bet-footer">
-            <span class="odds-badge">Odds <strong>${escapeHtml(row.odds)}</strong></span>
-            <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(safeRow)})'>${isAdded ? 'Added' : 'Add'}</button>
-          </div>
-        </div>
-      `;
-    });
-  }
-
-  // 5) Render wide table
-  if(betsTableBody){
-    betsTableBody.innerHTML = "";
-    list.forEach(row=>{
-      const key = makeBetKey(row);
-      const isAdded = addedKeys.has(key);
-      const dateLabel = row.bet_date ? new Date(row.bet_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : "";
-      const valueLabel = (row.value_pct != null && row.value_pct !== "" && !Number.isNaN(Number(row.value_pct)))
-        ? (Number(row.value_pct).toFixed(1) + "%")
-        : "—";
-      const safeRow = { match: row.match, market: row.market, odds: row.odds, bet_date: row.bet_date, created_at: row._raw?.created_at };
-
-      betsTableBody.innerHTML += `
-        <tr>
-          <td>${escapeHtml(row.match)}</td>
-          <td>${escapeHtml(row.market)}</td>
-          <td>${escapeHtml(row.odds)}</td>
-          <td>${escapeHtml(valueLabel)}</td>
-          <td>${escapeHtml(dateLabel)}</td>
-          <td style="text-align:right;">
-            <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(safeRow)})'>${isAdded ? 'Added' : 'Add'}</button>
-          </td>
-        </tr>
-      `;
-    });
-  }
-
-  renderSubscriptionGate();
+});
 }
-
 
 
 async function addToTracker(btn, row){
@@ -976,7 +772,7 @@ if(val==="delete"){
 if(!confirm("Delete this bet?")){loadTracker();return;}
 await client.from("bet_tracker").delete().eq("id",id);
 // Refresh the Value Bets feed so the button switches back from "Added" to "Add".
-// init in DOMContentLoaded
+loadBets();
 }else{
 await client.from("bet_tracker").update({result:val}).eq("id",id);
 }
@@ -998,8 +794,121 @@ a.click();
 });
 }
 
-// init in DOMContentLoaded
-loadTracker();
+// App init is now gated behind subscriber auth (so we don't load private data
+// before a user logs in).
+let __appInitialized = false;
+async function initAppOnce(){
+  if(__appInitialized) return;
+  __appInitialized = true;
+  await loadBets();
+  await loadTracker();
+}
+
+function setLocked(locked){
+  document.body.classList.toggle("locked", !!locked);
+  // Show logout button only when authenticated
+  const logoutBtn = document.getElementById("btnLogout");
+  if (logoutBtn) logoutBtn.style.display = locked ? "none" : "inline-flex";
+}
+
+async function initAuthGate(){
+  // Default to locked to avoid flicker of private content
+  setLocked(true);
+
+  const msgEl = document.getElementById("authMsg");
+  const setMsg = (t)=>{ if(msgEl){ msgEl.textContent = t || ""; } };
+
+  const emailEl = document.getElementById("authEmail");
+  const passEl  = document.getElementById("authPassword");
+  const btnLogin  = document.getElementById("btnLogin");
+  const btnSignup = document.getElementById("btnSignup");
+
+  // If the gate UI isn't present, just unlock and run.
+  if(!emailEl || !passEl || !btnLogin){
+    setLocked(false);
+    await initAppOnce();
+    return;
+  }
+
+  const { data: { session } } = await client.auth.getSession();
+  if(session){
+    setLocked(false);
+    await initAppOnce();
+  }else{
+    setMsg("Please log in to view subscriber content.");
+  }
+
+  btnLogin.addEventListener("click", async ()=>{
+    try{
+      setMsg("Logging in...");
+      const email = (emailEl.value || "").trim();
+      const password = passEl.value || "";
+      const { error } = await client.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      setLocked(false);
+      setMsg("");
+      await initAppOnce();
+    }catch(e){
+      setLocked(true);
+      setMsg(e?.message || "Login failed.");
+    }
+  });
+
+  if(btnSignup){
+    btnSignup.addEventListener("click", async ()=>{
+      try{
+        setMsg("Creating account...");
+        const email = (emailEl.value || "").trim();
+        const password = passEl.value || "";
+        const { error } = await client.auth.signUp({
+          email,
+          password,
+          options: {
+            // Helps Supabase email-confirm links return users back to your site
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if(error) throw error;
+        // Depending on your Supabase Auth settings, users may need email confirmation.
+        // If confirmation is OFF, they'll be logged in immediately.
+        const { data: { session } } = await client.auth.getSession();
+        if(session){
+          setLocked(false);
+          setMsg("");
+          await initAppOnce();
+        }else{
+          setLocked(true);
+          setMsg("Check your email to confirm your account, then log in.");
+        }
+      }catch(e){
+        setLocked(true);
+        setMsg(e?.message || "Sign up failed.");
+      }
+    });
+  }
+
+  // If the user logs in/out in another tab, keep UI in sync.
+  client.auth.onAuthStateChange(async (_event, newSession)=>{
+    if(newSession){
+      setLocked(false);
+      await initAppOnce();
+    }else{
+      setLocked(true);
+      setMsg("Please log in to view subscriber content.");
+    }
+  });
+
+  // Logout button (shows when logged in)
+  const logoutBtn = document.getElementById("btnLogout");
+  if (logoutBtn && !logoutBtn.dataset.bound) {
+    logoutBtn.dataset.bound = "1";
+    logoutBtn.addEventListener("click", async ()=>{
+      try { await client.auth.signOut(); } catch(e) {}
+      setLocked(true);
+      setMsg("Logged out.");
+    });
+  }
+}
 
 
 // Toggle with animation + memory
@@ -1030,6 +939,9 @@ document.addEventListener("DOMContentLoaded",function(){
     wrapper.classList.add("expanded");
     arrow.innerText="▲";
   }
+
+  // Subscriber auth gate (shows login/sign-up overlay if not logged in)
+  initAuthGate();
 });
 
 // Extend loadTracker to update bet count
@@ -1270,78 +1182,3 @@ if(startingInput){
     localStorage.setItem("starting_bankroll", this.value);
   });
 }
-// --- Init auth + reload feed ---
-document.addEventListener('DOMContentLoaded', async () => {
-  const authBtn = document.getElementById('authButton');
-  if(authBtn){
-    authBtn.addEventListener('click', (e)=>{ e.preventDefault(); openAuthModal(); });
-  }
-
-  const modal = document.getElementById('authModal');
-  if(modal){
-    modal.addEventListener('click', (e)=>{
-      if(e.target && e.target.dataset && e.target.dataset.close) closeAuthModal();
-    });
-  }
-
-  document.getElementById('btnLogin')?.addEventListener('click', async ()=>{
-    const email = document.getElementById('authEmail')?.value?.trim();
-    const password = document.getElementById('authPassword')?.value ?? '';
-    if(!email || !password) return showMsg('Enter email + password.', true);
-
-    const { error } = await client.auth.signInWithPassword({ email, password });
-    if(error) return showMsg(error.message || 'Login failed.', true);
-
-    showMsg('Logged in.');
-    await refreshSessionAndAccess();
-    await loadBets();
-    await loadTracker();
-  });
-
-  document.getElementById('btnSignup')?.addEventListener('click', async ()=>{
-    const email = document.getElementById('authEmail')?.value?.trim();
-    const password = document.getElementById('authPassword')?.value ?? '';
-    if(!email || !password) return showMsg('Enter email + password.', true);
-
-    const { error } = await client.auth.signUp({ email, password });
-    if(error) return showMsg(error.message || 'Sign up failed.', true);
-
-    showMsg('Check your email to confirm, then log in.');
-  });
-
-  document.getElementById('btnLogout')?.addEventListener('click', async ()=>{
-    await client.auth.signOut();
-    session = null;
-    accessActive = false;
-    setAuthButton();
-    renderSubscriptionGate();
-    showMsg('Logged out.');
-    await loadBets();
-  });
-
-  document.getElementById('btnClaimTrial')?.addEventListener('click', async ()=>{
-    if(!session) return showMsg('Log in first, then claim the trial.', true);
-    const { error } = await client.rpc('claim_trial');
-    if(error) return showMsg(error.message || 'Could not start trial.', true);
-    showMsg('Trial started. You have access for 5 days.');
-    await refreshSessionAndAccess();
-    await loadBets();
-  });
-
-  document.getElementById('btnClaimPromo')?.addEventListener('click', async ()=>{
-    if(!session) return showMsg('Log in first, then claim the £5 offer.', true);
-    const { error } = await client.rpc('claim_intro_offer');
-    if(error) return showMsg(error.message || 'Offer unavailable.', true);
-    showMsg('£5 intro offer claimed. You\'re active now.');
-    await refreshSessionAndAccess();
-    await loadBets();
-  });
-
-  client.auth.onAuthStateChange(async ()=>{
-    await refreshSessionAndAccess();
-    await loadBets();
-  });
-
-  await refreshSessionAndAccess();
-  await loadBets();
-});

@@ -1339,22 +1339,18 @@ th{text-align:left}
   --app-max: 980px;
   --app-pad: 18px;
   --card-radius: 18px;
-  --font-scale: 1;
 }
 
 body{
   max-width: var(--app-max);
   margin: 0 auto;
   padding: var(--app-pad);
-  transform: scale(var(--font-scale));
-  transform-origin: top center;
 }
 
 /* Compact: slightly tighter + smaller max width */
 body.layout-compact{
   --app-max: 760px;
   --app-pad: 14px;
-  --font-scale: 1;
 }
 
 /* Wide: breathe on desktop */
@@ -1362,7 +1358,6 @@ body.layout-wide{
   /* On small screens Wide behaves like Compact; wide spacing kicks in on desktop via media query below */
   --app-max: 760px;
   --app-pad: 14px;
-  --font-scale: 1;
 }
 
 /* Top controls row */
@@ -1372,6 +1367,19 @@ body.layout-wide{
   justify-content:space-between;
   gap:12px;
   margin: 10px 0 14px 0;
+}
+
+/* Mobile: keep Logout visible (wrap onto next line if needed) */
+@media (max-width: 520px){
+  .top-controls{
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .layout-switch{ flex: 1 1 auto; }
+  .logout-btn{
+    margin-left: auto;
+    flex: 0 0 auto;
+  }
 }
 
 .layout-switch{
@@ -1398,6 +1406,16 @@ body.layout-wide{
   color: rgba(255,255,255,0.98);
 }
 
+/* Logout button matches pill look */
+.logout-btn{
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+}
+.logout-btn:hover{
+  background: rgba(255,255,255,0.08);
+}
+
 
 /* Wide layout: apply multi-column / extra spacing only when there's room */
 @media (min-width: 900px){
@@ -1408,15 +1426,18 @@ body.layout-wide{
   body.layout-wide .bets-grid{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide }
+}
 
 @media (min-width: 1200px){
   body.layout-wide .bets-grid{
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide }
+}
+
+/* Keep Daily History as single-column even in Wide mode */
+body.layout-wide .history-days{
+  grid-template-columns: 1fr !important;
+}
 
 /* In WIDE mode on desktop, Value Bets switches to table rows */
 @media (min-width: 980px){
@@ -1424,29 +1445,126 @@ body.layout-wide body.layout-wide /* Keep Daily History as single-column even in
   body.layout-wide .bets-table{display:table}
 }
 
+/* =========================
+   Subscriber auth gate
+   ========================= */
+
+body.locked header,
+body.locked main,
+body.locked .tabs,
+body.locked .page,
+body.locked .layout-toggle-wrap,
+body.locked .page-container,
+body.locked .floating-menu {
+  display: none !important;
+}
+
+/* Show auth gate while locked */
+body.locked #authGate { display: flex; }
+body:not(.locked) #authGate { display: none; }
+
+.auth-gate{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(1200px 600px at 50% 0%, rgba(0,255,170,0.07), transparent 60%),
+              linear-gradient(180deg, rgba(10,16,29,0.92), rgba(10,16,29,0.96));
+  z-index: 9999;
+}
+
+.auth-card{
+  width: min(420px, 100%);
+  background: rgba(18, 28, 48, 0.82);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+}
+
+.auth-card h2{
+  margin: 0 0 6px 0;
+  font-size: 22px;
+  color: #e9f1ff;
+}
+
+.auth-sub{
+  margin: 0 0 14px 0;
+  opacity: 0.85;
+}
+
+.auth-label{
+  display: block;
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 10px;
+  margin-bottom: 6px;
+}
+
+.auth-input{
+  width: 100%;
+  padding: 12px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(10, 16, 29, 0.55);
+  color: #e9f1ff;
+  outline: none;
+}
+
+.auth-input:focus{
+  border-color: rgba(0,255,170,0.35);
+  box-shadow: 0 0 0 3px rgba(0,255,170,0.10);
+}
+
+.auth-actions{
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.auth-btn{
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.06);
+  color: #e9f1ff;
+  cursor: pointer;
+}
+
+.auth-btn-primary{
+  border-color: rgba(0,255,170,0.25);
+  background: rgba(0,255,170,0.10);
+}
+
+.auth-btn-secondary{
+  border-color: rgba(255,255,255,0.12);
+}
+
+.auth-btn:hover{
+  filter: brightness(1.08);
+}
+
+.auth-msg{
+  min-height: 18px;
+  margin-top: 12px;
+  font-size: 13px;
+  opacity: 0.9;
+}
 
 
 
-/* --- Subscriber auth UI --- */
-.auth-btn{margin-left:12px;padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#eaf6f4;font-weight:600}
-.auth-btn:active{transform:translateY(1px)}
 
-.subscription-gate{margin-top:14px}
-.subscription-gate .gate-card{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);border-radius:18px;padding:14px}
-.subscription-gate .gate-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-
-.modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:9999}
-.modal.hidden{display:none}
-.modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.55)}
-.modal-card{position:relative;max-width:520px;width:calc(100% - 28px);background:rgba(12,20,32,.96);border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:16px;color:#eaf6f4;box-shadow:0 12px 40px rgba(0,0,0,.45)}
-.modal-card h2{margin:0 0 6px 0;font-size:26px}
-.modal-card .muted{opacity:.85;margin:0 0 14px 0}
-.modal-card label{display:block;margin:10px 0 6px 0;opacity:.9}
-.modal-card input{width:100%;padding:12px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#eaf6f4}
-.modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-.modal-actions.secondary{margin-top:10px}
-.modal-actions button{padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#eaf6f4;font-weight:600}
-.modal-actions button.primary{background:rgba(33, 150, 83, .25);border-color:rgba(33,150,83,.55)}
-.auth-msg{margin:10px 0 0 0;min-height:18px;opacity:.9}
-.link-btn{margin-top:10px;background:none;border:none;color:#9be7d9;text-decoration:underline;font-weight:700;padding:6px 0}
-.link-btn.hidden{display:none}
+/* === Auth Gate responsive tweaks (override) === */
+.auth-gate{
+  padding:16px;
+  overflow:auto;
+}
+@media (max-height:700px){
+  .auth-gate{align-items:flex-start; padding-top:24px;}
+}
+.auth-card{width:100%; max-width:520px;}
