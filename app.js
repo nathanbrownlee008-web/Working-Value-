@@ -1,25 +1,7 @@
 
-// =========================
-// Supabase Config
-// =========================
-// IMPORTANT:
-// - You can override these *without editing this file* by setting either:
-//   1) window.__SUPABASE_URL / window.__SUPABASE_KEY in index.html, or
-//   2) localStorage keys: supabase_url / supabase_key
-// This avoids accidentally deploying the app against the wrong Supabase project.
-
-const DEFAULT_SUPABASE_URL = "https://krmmmutcejnzdfupexpv.supabase.co";
-const DEFAULT_SUPABASE_KEY = "sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
-
-function getSupabaseConfig(){
-  const w = (typeof window !== 'undefined') ? window : {};
-  const url = (w.__SUPABASE_URL || localStorage.getItem('supabase_url') || DEFAULT_SUPABASE_URL).trim();
-  const key = (w.__SUPABASE_KEY || localStorage.getItem('supabase_key') || DEFAULT_SUPABASE_KEY).trim();
-  return { url, key };
-}
-
-const { url: SUPABASE_URL, key: SUPABASE_KEY } = getSupabaseConfig();
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
+const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
+const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 function pad2(n){return String(n).padStart(2,'0');}
 function toLocalYMD(d=new Date()){
@@ -85,37 +67,7 @@ const avgOddsElem=document.getElementById("avgOdds");
 const profitCard=document.getElementById("profitCard");
 
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
-// Keep track of which value-bets were added (so buttons stay "Added" after refresh)
-const addedKeys = new Set(JSON.parse(localStorage.getItem('added_bets') || '[]'));
-
-function persistAddedKeys(){
-  try { localStorage.setItem('added_bets', JSON.stringify(Array.from(addedKeys))); } catch (e) {}
-}
-
-async function getCurrentUserId(){
-  try{
-    const { data } = await client.auth.getSession();
-    return data.session?.user?.id || null;
-  }catch(e){
-    return null;
-  }
-}
-
-async function selectTrackerRows(){
-  const userId = await getCurrentUserId();
-  let q = client.from('bet_tracker')
-    .select('match,market,odds,bet_date,result,user_id,created_at')
-    .order('created_at', { ascending:false });
-  if(userId) q = q.eq('user_id', userId);
-  let res = await q;
-  if(res.error && /user_id/i.test(res.error.message || '')){
-    // fallback for schemas that don't have user_id
-    res = await client.from('bet_tracker')
-      .select('match,market,odds,bet_date,result,created_at')
-      .order('created_at', { ascending:false });
-  }
-  return res;
-}
+const addedKeys = new Set();
 
 function makeBetKey(row){
   const match = (row?.match ?? "").toString().trim();
@@ -180,12 +132,16 @@ async function loadBets(){
   addedKeys.clear();
   // Preload tracker rows so already-added bets render as "Added"
   try{
-    const { data: tdata, error: terr } = await selectTrackerRows();
+    const { data: tdata, error: terr } = await client
+      .from("bet_tracker")
+      .select("match,market,odds")
+      .limit(1000);
     if(!terr && Array.isArray(tdata)){
       tdata.forEach(r => addedKeys.add(makeBetKey(r)));
-      persistAddedKeys();
     }
-  }catch(e){ /* ignore */ }
+  }catch(e){
+    // Ignore preload failures
+  }
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
@@ -245,9 +201,7 @@ async function addToTracker(btn, row){
     btn.textContent = 'Adding…';
   }
 
-  const userId = await getCurrentUserId();
-
-  const basePayload = {
+  const payload = {
     match: row.match,
     market: row.market,
     odds: row.odds,
@@ -255,20 +209,10 @@ async function addToTracker(btn, row){
     result: "pending"
   };
 
-  const payload = userId ? { ...basePayload, user_id: userId } : basePayload;
-
-  // Try insert with user_id (newer schema) then fall back if the column doesn't exist.
-  let { data, error } = await client
+  const { data, error } = await client
     .from("bet_tracker")
     .insert([payload])
     .select();
-
-  if(error && /user_id/i.test(error.message || '')){
-    ({ data, error } = await client
-      .from("bet_tracker")
-      .insert([basePayload])
-      .select());
-  }
 
   if(error){
     console.error("Insert failed:", error);
@@ -277,15 +221,11 @@ async function addToTracker(btn, row){
       btn.textContent = "Add";
     }
     // Quick visible feedback (mobile)
-    try{
-      const extra = (!userId) ? "\n\nTip: log in first (RLS usually blocks anon inserts)." : "";
-      alert("Could not add bet." + extra + (error?.message ? "\n\n" + error.message : ""));
-    }catch(e){}
+    try{ alert("Could not add bet. Check tracker table columns / RLS."); }catch(e){}
     return;
   }
 
   addedKeys.add(key);
-  persistAddedKeys();
   if(btn){
     btn.textContent = 'Added';
     btn.classList.add('added', 'flash');
@@ -653,10 +593,7 @@ borderWidth:2,
 }
 
 async function loadTracker(){
-const {data, error}=await selectTrackerRows();
-if(error){
-  console.warn('loadTracker error', error);
-}
+const {data}=await client.from("bet_tracker").select("*").order("created_at",{ascending:true});
 const rows = data || [];
 trackerRowsCache = rows;
 trackerAllRows = rows;
@@ -664,7 +601,6 @@ trackerAllRows = rows;
 // Keep Value Bets \"Added\" state synced with tracker rows
 addedKeys.clear();
 rows.forEach(r => addedKeys.add(makeBetKey(r)));
-persistAddedKeys();
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);
@@ -1130,80 +1066,3 @@ if(startingInput){
     localStorage.setItem("starting_bankroll", this.value);
   });
 }
-
-
-// ===== AUTH (Magic Link + Profiles) =====
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const vipBadge = document.getElementById("vipBadge");
-
-let currentUser = null;
-let currentProfile = null;
-
-loginBtn?.addEventListener("click", async () => {
-  const email = prompt("Enter your email:");
-  if (!email) return;
-
-  try{
-    const { error } = await client.auth.signInWithOtp({
-      email,
-      options: {
-        // ensure the magic link returns to THIS deployed site
-        emailRedirectTo: window.location.origin
-      }
-    });
-    if (error) alert(error.message);
-    else alert("Magic link sent. Check inbox + spam.");
-  }catch(e){
-    alert(e?.message || String(e));
-  }
-});
-
-logoutBtn?.addEventListener("click", async () => {
-  await client.auth.signOut();
-  location.reload();
-});
-
-async function checkAuth() {
-  const { data } = await client.auth.getSession();
-  currentUser = data.session?.user ?? null;
-
-  if (!currentUser) {
-    if (loginBtn) loginBtn.style.display = "inline-block";
-    if (logoutBtn) logoutBtn.style.display = "none";
-    if (vipBadge) vipBadge.style.display = "none";
-    return;
-  }
-
-  if (loginBtn) loginBtn.style.display = "none";
-  if (logoutBtn) logoutBtn.style.display = "inline-block";
-
-  await loadProfile();
-}
-
-async function loadProfile() {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", currentUser.id)
-    .single();
-
-  if (!profile) {
-    await client.from("profiles").insert({
-      id: currentUser.id
-    });
-    currentProfile = { is_vip: false };
-  } else {
-    currentProfile = profile;
-  }
-
-  if (currentProfile?.is_vip && vipBadge) {
-    vipBadge.style.display = "inline-block";
-  }
-}
-
-client.auth.onAuthStateChange(() => {
-  checkAuth();
-});
-
-checkAuth();
