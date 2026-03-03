@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // OPTIONAL: override these to match YOUR Supabase project (recommended)
+  // window.__SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+  // window.__SUPABASE_KEY = "YOUR_ANON_PUBLIC_KEY";
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="styles.css?v=1772410471"/>
 <!-- PWA manifest removed for now (Install App feature disabled) -->
@@ -25,6 +31,7 @@
     <button id="btnCompact" class="layout-btn">Compact</button>
     <button id="btnWide" class="layout-btn">Wide</button>
   </div>
+  <button id="authButton" class="auth-btn">Log in</button>
   <!-- Install App button removed for now -->
 </div>
 </header>

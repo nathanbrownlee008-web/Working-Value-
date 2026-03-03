@@ -1,7 +1,28 @@
 
-const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
-const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
+
+// Supabase config: you can override in index.html via window.__SUPABASE_URL / window.__SUPABASE_KEY
+// or by setting localStorage SUPABASE_URL / SUPABASE_KEY in the browser console.
+const DEFAULT_SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
+const DEFAULT_SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
+const SUPABASE_URL=(window.__SUPABASE_URL||localStorage.getItem('SUPABASE_URL')||DEFAULT_SUPABASE_URL).trim();
+const SUPABASE_KEY=(window.__SUPABASE_KEY||localStorage.getItem('SUPABASE_KEY')||DEFAULT_SUPABASE_KEY).trim();
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+async function _checkSupabaseConfig(){
+  try{
+    const { error } = await client.from('value_bets_feed_preview').select('id').limit(1);
+    if(error){
+      console.warn('Supabase config check failed:', error);
+      window.__SUPABASE_CONFIG_ERROR = error;
+    }
+  }catch(e){
+    console.warn('Supabase config check exception:', e);
+    window.__SUPABASE_CONFIG_ERROR = e;
+  }
+}
+_checkSupabaseConfig();
+
+
 
 // --- Subscriber auth / access state ---
 let session = null;
