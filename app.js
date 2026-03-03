@@ -10,11 +10,6 @@ function toLocalYMD(d=new Date()){
   const da=pad2(d.getDate());
   return `${yr}-${mo}-${da}`;
 }
-
-function getTodayDate(){
-  return toLocalYMD(new Date().toISOString());
-}
-
 function normalizeDateOnly(value){
   if(!value) return null;
   if(typeof value==='string'){
@@ -28,11 +23,11 @@ function normalizeDateOnly(value){
   return null;
 }
 function isValueBetActiveToday(row){
-  // We want bet_date to control which day a bet appears.
-  // If bet_date is missing/null, fall back to created_at date.
-  const today = getTodayDate(); // local YYYY-MM-DD
-  const d = row.bet_date ? String(row.bet_date).slice(0,10) : toLocalYMD(row.created_at);
-  return d === today;
+  const today=toLocalYMD(new Date());
+  const start=normalizeDateOnly(row.bet_date) || normalizeDateOnly(row.created_at);
+  const end=normalizeDateOnly(row.bet_end_date) || start;
+  if(!start) return false;
+  return today >= start && today <= end;
 }
 
 
@@ -107,8 +102,8 @@ let currentTopTab = "bets"; // 'bets' | 'tracker' | 'history'
 let trackerRowsCache = [];
 
 tabBets.onclick=()=>switchTab("bets");
-tabTracker.onclick=()=>{ if(requireSubscriber("Tracker")) switchTab("tracker"); };
-if(tabHistoryEl) tabHistoryEl.onclick=()=>{ if(requireSubscriber("Daily History")) switchTab("history"); };
+tabTracker.onclick=()=>switchTab("tracker");
+if(tabHistoryEl) tabHistoryEl.onclick=()=>switchTab("history");
 
 function switchTab(tab){
   currentTopTab = tab;
@@ -150,22 +145,12 @@ async function loadBets(){
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
-// banner
-const banner=document.createElement("div");
-banner.className="card";
-banner.style.marginBottom="10px";
-banner.innerHTML = (!session || !isSubscribed)
-  ? "<b>Free preview:</b> showing 2 bets. Subscribe to unlock full feed + Tracker."
-  : "<b>Subscriber:</b> full feed unlocked.";
-betsGrid.appendChild(banner);
-
 const betsTable=document.getElementById('betsTable');
 const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
 if(betsTbody) betsTbody.innerHTML = "";
 const active=(data||[]).filter(isValueBetActiveToday);
-const visible = (!session || !isSubscribed) ? active.slice(0,2) : active;
-if(!visible.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
- (visible || []).forEach(row=>{
+if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
+ (active || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -180,7 +165,7 @@ betsGrid.innerHTML+=`
   </div>
   <div class="bet-footer">
     <span class="odds-badge">Odds <strong>${row.odds}</strong></span>
-    <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${(session && isSubscribed) ? (isAdded ? 'Added' : 'Add') : 'Subscribe'}</button>
+    <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
 
@@ -197,7 +182,7 @@ betsGrid.innerHTML+=`
         <td><span class="pill">${escapeHtml(valTxt)}</span></td>
         <td>${escapeHtml(betDate)}</td>
         <td>
-          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${(session && isSubscribed) ? (isAdded ? 'Added' : 'Add') : 'Subscribe'}</button>
+          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
         </td>
       </tr>
     `;
@@ -207,10 +192,6 @@ betsGrid.innerHTML+=`
 
 
 async function addToTracker(btn, row){
-  if(!(session && isSubscribed)){
-    openGate();
-    return;
-  }
   const key = makeBetKey(row);
   if(addedKeys.has(key)) return;
 
@@ -907,11 +888,10 @@ async function initAuthGate(){
   }
 
   // If the user logs in/out in another tab, keep UI in sync.
-    client.auth.onAuthStateChange(async ()=>{
-    await refreshSessionAndSubscription();
-    await loadBets();
-  });
-await initAppOnce();
+  client.auth.onAuthStateChange(async (_event, newSession)=>{
+    if(newSession){
+      setLocked(false);
+      await initAppOnce();
     }else{
       setLocked(true);
       setMsg("Please log in to view subscriber content.");
@@ -923,9 +903,7 @@ await initAppOnce();
   if (logoutBtn && !logoutBtn.dataset.bound) {
     logoutBtn.dataset.bound = "1";
     logoutBtn.addEventListener("click", async ()=>{
-      try { await client.auth.signOut();
-    await refreshSessionAndSubscription();
-    closeGate(); } catch(e) {}
+      try { await client.auth.signOut(); } catch(e) {}
       setLocked(true);
       setMsg("Logged out.");
     });
