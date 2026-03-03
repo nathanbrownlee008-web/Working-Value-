@@ -762,21 +762,59 @@ if(monthKeys.length){
 }
 
 
-async function updateStake(id,val){
-await client.from("bet_tracker").update({stake:parseFloat(val)}).eq("id",id);
-loadTracker();
+async function updateStake(id, val) {
+  const stake = parseFloat(val);
+  const { error } = await client
+    .from("bet_tracker")
+    .update({ stake: Number.isFinite(stake) ? stake : 0 })
+    .eq("id", id);
+
+  if (error) {
+    console.error("updateStake error:", error);
+    alert(
+      "Could not update stake. This is usually blocked by Supabase RLS/policies.\n\n" +
+        (error.message || JSON.stringify(error))
+    );
+  }
+  loadTracker();
 }
 
-async function updateResult(id,val){
-if(val==="delete"){
-if(!confirm("Delete this bet?")){loadTracker();return;}
-await client.from("bet_tracker").delete().eq("id",id);
-// Refresh the Value Bets feed so the button switches back from "Added" to "Add".
-loadBets();
-}else{
-await client.from("bet_tracker").update({result:val}).eq("id",id);
-}
-loadTracker();
+async function updateResult(id, val) {
+  if (val === "delete") {
+    if (!confirm("Delete this bet?")) {
+      loadTracker();
+      return;
+    }
+    const { error } = await client.from("bet_tracker").delete().eq("id", id);
+
+    if (error) {
+      console.error("delete bet error:", error);
+      alert(
+        "Could not delete bet. This is usually blocked by Supabase RLS/policies.\n\n" +
+          (error.message || JSON.stringify(error))
+      );
+      loadTracker();
+      return;
+    }
+
+    // Refresh the Value Bets feed so the button switches back from "Added" to "Add".
+    loadValueBets();
+  } else {
+    const { error } = await client
+      .from("bet_tracker")
+      .update({ result: val })
+      .eq("id", id);
+
+    if (error) {
+      console.error("updateResult error:", error);
+      alert(
+        "Could not update result. This is usually blocked by Supabase RLS/policies.\n\n" +
+          (error.message || JSON.stringify(error))
+      );
+    }
+  }
+
+  loadTracker();
 }
 
 function exportCSV(){
