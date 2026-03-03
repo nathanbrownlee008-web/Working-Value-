@@ -1427,6 +1427,10 @@ body.layout-wide body.layout-wide /* Keep Daily History as single-column even in
 
 
 
+/* --- Subscriber auth UI --- */
+.auth-btn{margin-left:12px;padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#eaf6f4;font-weight:600}
+.auth-btn:active{transform:translateY(1px)}
+
 .subscription-gate{margin-top:14px}
 .subscription-gate .gate-card{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.04);border-radius:18px;padding:14px}
 .subscription-gate .gate-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
@@ -1443,5 +1447,6 @@ body.layout-wide body.layout-wide /* Keep Daily History as single-column even in
 .modal-actions.secondary{margin-top:10px}
 .modal-actions button{padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#eaf6f4;font-weight:600}
 .modal-actions button.primary{background:rgba(33, 150, 83, .25);border-color:rgba(33,150,83,.55)}
+.auth-msg{margin:10px 0 0 0;min-height:18px;opacity:.9}
 .link-btn{margin-top:10px;background:none;border:none;color:#9be7d9;text-decoration:underline;font-weight:700;padding:6px 0}
 .link-btn.hidden{display:none}

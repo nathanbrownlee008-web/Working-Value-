@@ -31,7 +31,8 @@
     <button id="btnCompact" class="layout-btn">Compact</button>
     <button id="btnWide" class="layout-btn">Wide</button>
   </div>
-<!-- Install App button removed for now -->
+  <button id="authButton" class="auth-btn">Log in</button>
+  <!-- Install App button removed for now -->
 </div>
 </header>
 
@@ -127,14 +128,29 @@
 </section>
 
 <script src="app.js?v=1772410471"></script>
-<div id="authModal" class="modal hidden" aria-hidden="true">
+<div class="modal-card" role="dialog" aria-modal="true" aria-label="Subscriber Access">
+    <h2>Subscriber Access</h2>
+    <p class="muted">Log in (or sign up) to unlock all daily bets.</p>
 
-<script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations()
-      .then(regs => regs.forEach(r => r.unregister()))
-      .catch(() => {});
-  }
-</script>
+    <label>Email</label>
+    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"/>
+
+    <label>Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="••••••••"/>
+
+    <div class="modal-actions">
+      <button id="btnLogin" class="primary">Log in</button>
+      <button id="btnSignup">Sign up</button>
+    </div>
+
+    <div class="modal-actions secondary">
+      <button id="btnClaimTrial">Start 5‑day free trial</button>
+      <button id="btnClaimPromo">£5 first month (first 50)</button>
+    </div>
+
+    <p id="authMsg" class="auth-msg"></p>
+    <button id="btnLogout" class="link-btn hidden">Log out</button>
+  </div>
+</div>
 </body>
 </html>
