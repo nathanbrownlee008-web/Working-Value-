@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // OPTIONAL: override these to match YOUR Supabase project (recommended)
+  // window.__SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+  // window.__SUPABASE_KEY = "YOUR_ANON_PUBLIC_KEY";
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="styles.css?v=1772410471"/>
 <!-- PWA manifest removed for now (Install App feature disabled) -->
@@ -12,13 +18,6 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png"/>
 </head>
 <body>
-
-<div id="auth-area" style="position:absolute;top:10px;right:15px;display:flex;gap:10px;align-items:center;z-index:999;">
-  <button id="loginBtn">Login</button>
-  <button id="logoutBtn" style="display:none;">Logout</button>
-  <span id="vipBadge" style="display:none;font-weight:bold;color:gold;">VIP</span>
-</div>
-
 
 <header class="main-header">
 <h1 class="logo-3d">Top Daily Tips</h1>
@@ -28,10 +27,12 @@
 <button id="tabHistory">Daily History</button>
 </div>
 <div class="top-controls">
+  <button id="loginBtn" onclick="handleLoginClick()">Login</button>
   <div class="layout-switch" role="group" aria-label="Layout">
     <button id="btnCompact" class="layout-btn">Compact</button>
     <button id="btnWide" class="layout-btn">Wide</button>
   </div>
+  <button id="authButton" class="auth-btn">Log in</button>
   <!-- Install App button removed for now -->
 </div>
 </header>
@@ -128,5 +129,31 @@
 </section>
 
 <script src="app.js?v=1772410471"></script>
+<div id="authModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Subscriber Access">
+    <h2>Subscriber Access</h2>
+    <p class="muted">Log in (or sign up) to unlock all daily bets.</p>
+
+    <label>Email</label>
+    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"/>
+
+    <label>Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="••••••••"/>
+
+    <div class="modal-actions">
+      <button id="btnLogin" class="primary">Log in</button>
+      <button id="btnSignup">Sign up</button>
+    </div>
+
+    <div class="modal-actions secondary">
+      <button id="btnClaimTrial">Start 5‑day free trial</button>
+      <button id="btnClaimPromo">£5 first month (first 50)</button>
+    </div>
+
+    <p id="authMsg" class="auth-msg"></p>
+    <button id="btnLogout" class="link-btn hidden">Log out</button>
+  </div>
+</div>
 </body>
 </html>
