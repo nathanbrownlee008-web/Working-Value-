@@ -1066,3 +1066,70 @@ if(startingInput){
     localStorage.setItem("starting_bankroll", this.value);
   });
 }
+
+
+// ===== AUTH (Magic Link + Profiles) =====
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const vipBadge = document.getElementById("vipBadge");
+
+let currentUser = null;
+let currentProfile = null;
+
+loginBtn?.addEventListener("click", async () => {
+  const email = prompt("Enter your email:");
+  if (!email) return;
+
+  const { error } = await supabase.auth.signInWithOtp({ email });
+  if (error) alert(error.message);
+  else alert("Check your email for login link.");
+});
+
+logoutBtn?.addEventListener("click", async () => {
+  await supabase.auth.signOut();
+  location.reload();
+});
+
+async function checkAuth() {
+  const { data } = await supabase.auth.getSession();
+  currentUser = data.session?.user ?? null;
+
+  if (!currentUser) {
+    if (loginBtn) loginBtn.style.display = "inline-block";
+    if (logoutBtn) logoutBtn.style.display = "none";
+    if (vipBadge) vipBadge.style.display = "none";
+    return;
+  }
+
+  if (loginBtn) loginBtn.style.display = "none";
+  if (logoutBtn) logoutBtn.style.display = "inline-block";
+
+  await loadProfile();
+}
+
+async function loadProfile() {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", currentUser.id)
+    .single();
+
+  if (!profile) {
+    await supabase.from("profiles").insert({
+      id: currentUser.id
+    });
+    currentProfile = { is_vip: false };
+  } else {
+    currentProfile = profile;
+  }
+
+  if (currentProfile?.is_vip && vipBadge) {
+    vipBadge.style.display = "inline-block";
+  }
+}
+
+supabase.auth.onAuthStateChange(() => {
+  checkAuth();
+});
+
+checkAuth();
