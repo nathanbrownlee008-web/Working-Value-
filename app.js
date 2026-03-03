@@ -8,25 +8,14 @@ const SUPABASE_URL=(window.__SUPABASE_URL||localStorage.getItem('SUPABASE_URL')|
 const SUPABASE_KEY=(window.__SUPABASE_KEY||localStorage.getItem('SUPABASE_KEY')||DEFAULT_SUPABASE_KEY).trim();
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-async function _checkSupabaseConfig(){
-  try{
-    const { error } = await client.from('value_bets_feed_preview').select('id').limit(1);
-    if(error){
-      console.warn('Supabase config check failed:', error);
-      window.__SUPABASE_CONFIG_ERROR = error;
-    }
-  }catch(e){
-    console.warn('Supabase config check exception:', e);
-    window.__SUPABASE_CONFIG_ERROR = e;
-  }
-}
+async function _checkSupabaseConfig(){ return true; }
 _checkSupabaseConfig();
 
 
 
 // --- Subscriber auth / access state ---
 let session = null;
-let accessActive = false;
+let isSubscriber = false; // VIP flag from profiles.is_subscriber
 
 function escapeHTML(str){
   return String(str ?? '').replace(/[&<>"]+/g, (ch)=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[ch]||ch));
@@ -65,33 +54,48 @@ function closeAuthModal(){
 function renderSubscriptionGate(){
   const gate=document.getElementById('subscriptionGate');
   if(!gate) return;
-  if(session && accessActive){
-    gate.innerHTML = '<div class="gate-card">✅ <strong>Subscriber access active</strong>. Full feed unlocked.</div>';
+
+  if(session && isSubscriber){
+    gate.innerHTML = '<div class="gate-card">✅ <strong>VIP access active</strong>. Full feed unlocked.</div>';
     return;
   }
+
+  // Show a simple lock message (no trials / offers baked into the UI)
   gate.innerHTML = `
     <div class="gate-card">
-      <div><strong>Free preview:</strong> first 10 bets today.</div>
-      <div style="margin-top:6px; opacity:.9">Log in to unlock the rest. Everyone gets a 5‑day free trial. The £5 first month offer is limited to the first 50 people.</div>
+      <div><strong>VIP locked:</strong> log in with a VIP account to view Value Bets + Tracker.</div>
       <div class="gate-actions">
         <button class="auth-btn" id="gateLoginBtn">Log in / Sign up</button>
-        <button class="auth-btn" id="gateTrialBtn">Start 5‑day trial</button>
       </div>
-    </div>`;
-  document.getElementById('gateLoginBtn')?.addEventListener('click', openAuthModal);
-  document.getElementById('gateTrialBtn')?.addEventListener('click', openAuthModal);
+    </div>
+  `;
+  const btn=document.getElementById('gateLoginBtn');
+  if(btn) btn.onclick=()=>openAuthModal();
 }
 
 async function refreshSessionAndAccess(){
   const { data } = await client.auth.getSession();
   session = data?.session ?? null;
   setAuthButton();
+
+  // VIP lock: read profiles.is_subscriber (no trials / magic links)
   if(session){
-    const { data: ok, error } = await client.rpc('has_active_access', { p_user: session.user.id });
-    accessActive = !error && !!ok;
+    try{
+      const { data: profile, error } = await client
+        .from('profiles')
+        .select('is_subscriber')
+        .eq('id', session.user.id)
+        .single();
+
+      isSubscriber = !error && profile?.is_subscriber === true;
+    }catch(e){
+      // If profiles table/policy isn't ready yet, don't break the app.
+      isSubscriber = false;
+    }
   }else{
-    accessActive = false;
+    isSubscriber = false;
   }
+
   renderSubscriptionGate();
 }
 
@@ -228,7 +232,7 @@ async function loadBets(){
   let rows = [];
 
   try{
-    if(!session || !accessActive){
+    if(!session || !isSubscriber){
       const { data, error } = await client.rpc("get_public_value_bets", { p_date: today, p_limit: 10 });
       if(error) throw error;
       rows = (data || []);
@@ -294,21 +298,7 @@ async function loadBets(){
 
 
 async function addToTracker(btn, row){
-  
-// 🔒 VIP lock: adding to tracker requires logged-in + active access
-const { data: { session } } = await supabase.auth.getSession();
-if(!session){
-  try{ openAuthModal(); }catch(e){}
-  try{ alert("Please log in to use the Bet Tracker."); }catch(e){}
-  return;
-}
-if(!accessActive){
-  if(typeof renderSubscriptionGate === "function") renderSubscriptionGate();
-  try{ alert("Subscribe to unlock the Bet Tracker."); }catch(e){}
-  return;
-}
-
-const key = makeBetKey(row);
+  const key = makeBetKey(row);
   if(addedKeys.has(key)) return;
 
   // Optimistic UI
@@ -709,20 +699,11 @@ borderWidth:2,
 }
 
 async function loadTracker(){
-
-// 🔒 VIP lock: tracker requires logged-in + active access
-const { data: { session } } = await supabase.auth.getSession();
-if(!session || !accessActive){
-  if(typeof renderSubscriptionGate === "function") renderSubscriptionGate();
-  // Clear tracker UI if it exists
-  try{
-    const tbl = document.getElementById("trackerTableBody");
-    if(tbl) tbl.innerHTML = "";
-    const msg = document.getElementById("trackerStatus");
-    if(msg) msg.textContent = "Subscribe to unlock Bet Tracker.";
-  }catch(e){}
-  return;
-}
+  if(!session || !isSubscriber){
+    renderSubscriptionGate();
+    showToast('VIP locked: log in with a VIP account to use Tracker');
+    return;
+  }
 
 const {data}=await client.from("bet_tracker").select("*").order("created_at",{ascending:true});
 const rows = data || [];
@@ -1239,7 +1220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btnLogout')?.addEventListener('click', async ()=>{
     await client.auth.signOut();
     session = null;
-    accessActive = false;
+    isSubscriber = false;
     setAuthButton();
     renderSubscriptionGate();
     showMsg('Logged out.');
@@ -1248,16 +1229,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btnClaimTrial')?.addEventListener('click', async ()=>{
     if(!session) return showMsg('Log in first, then claim the trial.', true);
-    const { error } = await client.rpc('claim_trial');
+    const { error } = await client.rpc('/*removed*/');
     if(error) return showMsg(error.message || 'Could not start trial.', true);
     showMsg('Trial started. You have access for 5 days.');
     await refreshSessionAndAccess();
     await loadBets();
   });
 
-  document.getElementById('btnClaimPromo')?.addEventListener('click', async ()=>{
+  document.getElementById('btnClaimPromo_removed')?.addEventListener('click', async ()=>{
     if(!session) return showMsg('Log in first, then claim the £5 offer.', true);
-    const { error } = await client.rpc('claim_intro_offer');
+    const { error } = await client.rpc('/*removed*/');
     if(error) return showMsg(error.message || 'Offer unavailable.', true);
     showMsg('£5 intro offer claimed. You\'re active now.');
     await refreshSessionAndAccess();
