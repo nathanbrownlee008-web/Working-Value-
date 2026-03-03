@@ -3,6 +3,60 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
+function pad2(n){return String(n).padStart(2,'0');}
+function toLocalYMD(d=new Date()){
+  const yr=d.getFullYear();
+  const mo=pad2(d.getMonth()+1);
+  const da=pad2(d.getDate());
+  return `${yr}-${mo}-${da}`;
+}
+function normalizeDateOnly(value){
+  if(!value) return null;
+  if(typeof value==='string'){
+    if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const dt=new Date(value);
+    if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+    return null;
+  }
+  const dt=new Date(value);
+  if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+  return null;
+}
+function isValueBetActiveToday(row){
+  const today=toLocalYMD(new Date());
+  const start=normalizeDateOnly(row.bet_date) || normalizeDateOnly(row.created_at);
+  const end=normalizeDateOnly(row.bet_end_date) || start;
+  if(!start) return false;
+  return today >= start && today <= end;
+}
+
+
+// ===== Layout Mode (Compact / Wide) =====
+const btnCompact = document.getElementById("btnCompact");
+const btnWide = document.getElementById("btnWide");
+
+function applyLayout(mode){
+  document.body.classList.remove("layout-compact","layout-wide");
+  document.body.classList.add(mode === "wide" ? "layout-wide" : "layout-compact");
+  localStorage.setItem("layout_mode", mode);
+  if(btnCompact) btnCompact.classList.toggle("active", mode !== "wide");
+  if(btnWide) btnWide.classList.toggle("active", mode === "wide");
+}
+
+(function initLayoutMode(){
+  const saved = localStorage.getItem("layout_mode");
+  if(saved === "wide" || saved === "compact"){
+    applyLayout(saved);
+  }else{
+    // Default: compact on small screens, wide on desktop
+    applyLayout(window.innerWidth >= 950 ? "wide" : "compact");
+  }
+  if(btnCompact) btnCompact.addEventListener("click", ()=>applyLayout("compact"));
+  if(btnWide) btnWide.addEventListener("click", ()=>applyLayout("wide"));
+})();
+
+// (Install App / PWA install button removed for now)
+
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
 const roiElem=document.getElementById("roi");
@@ -14,26 +68,6 @@ const profitCard=document.getElementById("profitCard");
 
 // Track which feed items have been added to the tracker (prevents duplicate clicks + changes button UI)
 const addedKeys = new Set();
-
-// Local (device) date helper in YYYY-MM-DD (avoids UTC offset issues from toISOString)
-function localISODate(d = new Date()){
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
-}
-
-function rowFeedISODate(row){
-  // Prefer explicit bet_date (Supabase DATE), otherwise fall back to created_at
-  if(row?.bet_date){
-    return String(row.bet_date).slice(0,10);
-  }
-  if(row?.created_at){
-    const d = new Date(row.created_at);
-    if(!isNaN(d.getTime())) return localISODate(d);
-  }
-  return "";
-}
 
 function makeBetKey(row){
   const match = (row?.match ?? "").toString().trim();
@@ -109,25 +143,14 @@ async function loadBets(){
     // Ignore preload failures
   }
 
-  // Show only today's bets on Value Bets page.
-  // This makes bets automatically disappear after the day ends (while still existing for Tracker/History).
-  const todayISO = localISODate();
-
-  const {data}=await client
-    .from("value_bets_feed")
-    .select("*")
-    .order("value_pct",{ascending:false,nullsFirst:false})
-    .order("created_at",{ascending:false});
+const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
-
-  const todays = (data || []).filter(row => rowFeedISODate(row) === todayISO);
-
-  if(!todays.length){
-    betsGrid.innerHTML = `<div class="card">No bets found for today.</div>`;
-    return;
-  }
-
-  todays.forEach(row=>{
+const betsTable=document.getElementById('betsTable');
+const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
+if(betsTbody) betsTbody.innerHTML = "";
+const active=(data||[]).filter(isValueBetActiveToday);
+if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
+ (active || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -135,7 +158,7 @@ betsGrid.innerHTML+=`
   <h3 class="bet-title">${row.match}</h3>
   <div class="bet-meta">
     <span class="bet-market">${row.market}</span>
-    <span class="bet-date">${row.bet_date ? new Date(row.bet_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
+    <span class="bet-date">${row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '')}</span>
   </div>
   <div class="bet-stats">
     <span class="stat-chip"><span class="stat-chip__k">Value</span><span class="stat-chip__v">${(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value) != null ? Number(row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value).toFixed(1)+'%' : '—'}</span></span>
@@ -145,6 +168,25 @@ betsGrid.innerHTML+=`
     <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
+
+  // Desktop table row (shown via CSS in WIDE mode on large screens)
+  if(betsTbody){
+    const betDate = row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '');
+    const val = (row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value);
+    const valTxt = val != null ? Number(val).toFixed(1)+'%' : '—';
+    betsTbody.innerHTML += `
+      <tr>
+        <td><b>${escapeHtml(row.match||'')}</b></td>
+        <td>${escapeHtml(row.market||'')}</td>
+        <td><span class="pill">${escapeHtml(String(row.odds??''))}</span></td>
+        <td><span class="pill">${escapeHtml(valTxt)}</span></td>
+        <td>${escapeHtml(betDate)}</td>
+        <td>
+          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
+        </td>
+      </tr>
+    `;
+  }
 });
 }
 
@@ -752,8 +794,121 @@ a.click();
 });
 }
 
-loadBets();
-loadTracker();
+// App init is now gated behind subscriber auth (so we don't load private data
+// before a user logs in).
+let __appInitialized = false;
+async function initAppOnce(){
+  if(__appInitialized) return;
+  __appInitialized = true;
+  await loadBets();
+  await loadTracker();
+}
+
+function setLocked(locked){
+  document.body.classList.toggle("locked", !!locked);
+  // Show logout button only when authenticated
+  const logoutBtn = document.getElementById("btnLogout");
+  if (logoutBtn) logoutBtn.style.display = locked ? "none" : "inline-flex";
+}
+
+async function initAuthGate(){
+  // Default to locked to avoid flicker of private content
+  setLocked(true);
+
+  const msgEl = document.getElementById("authMsg");
+  const setMsg = (t)=>{ if(msgEl){ msgEl.textContent = t || ""; } };
+
+  const emailEl = document.getElementById("authEmail");
+  const passEl  = document.getElementById("authPassword");
+  const btnLogin  = document.getElementById("btnLogin");
+  const btnSignup = document.getElementById("btnSignup");
+
+  // If the gate UI isn't present, just unlock and run.
+  if(!emailEl || !passEl || !btnLogin){
+    setLocked(false);
+    await initAppOnce();
+    return;
+  }
+
+  const { data: { session } } = await client.auth.getSession();
+  if(session){
+    setLocked(false);
+    await initAppOnce();
+  }else{
+    setMsg("Please log in to view subscriber content.");
+  }
+
+  btnLogin.addEventListener("click", async ()=>{
+    try{
+      setMsg("Logging in...");
+      const email = (emailEl.value || "").trim();
+      const password = passEl.value || "";
+      const { error } = await client.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      setLocked(false);
+      setMsg("");
+      await initAppOnce();
+    }catch(e){
+      setLocked(true);
+      setMsg(e?.message || "Login failed.");
+    }
+  });
+
+  if(btnSignup){
+    btnSignup.addEventListener("click", async ()=>{
+      try{
+        setMsg("Creating account...");
+        const email = (emailEl.value || "").trim();
+        const password = passEl.value || "";
+        const { error } = await client.auth.signUp({
+          email,
+          password,
+          options: {
+            // Helps Supabase email-confirm links return users back to your site
+            emailRedirectTo: window.location.origin,
+          },
+        });
+        if(error) throw error;
+        // Depending on your Supabase Auth settings, users may need email confirmation.
+        // If confirmation is OFF, they'll be logged in immediately.
+        const { data: { session } } = await client.auth.getSession();
+        if(session){
+          setLocked(false);
+          setMsg("");
+          await initAppOnce();
+        }else{
+          setLocked(true);
+          setMsg("Check your email to confirm your account, then log in.");
+        }
+      }catch(e){
+        setLocked(true);
+        setMsg(e?.message || "Sign up failed.");
+      }
+    });
+  }
+
+  // If the user logs in/out in another tab, keep UI in sync.
+  client.auth.onAuthStateChange(async (_event, newSession)=>{
+    if(newSession){
+      setLocked(false);
+      await initAppOnce();
+    }else{
+      setLocked(true);
+      setMsg("Please log in to view subscriber content.");
+    }
+  });
+
+  // Logout button (shows when logged in)
+  const logoutBtn = document.getElementById("btnLogout");
+  if (logoutBtn && !logoutBtn.dataset.bound) {
+    logoutBtn.dataset.bound = "1";
+    logoutBtn.addEventListener("click", async ()=>{
+      try { await client.auth.signOut(); } catch(e) {}
+      setLocked(true);
+      setMsg("Logged out.");
+    });
+  }
+}
 
 
 // Toggle with animation + memory
@@ -784,6 +939,9 @@ document.addEventListener("DOMContentLoaded",function(){
     wrapper.classList.add("expanded");
     arrow.innerText="▲";
   }
+
+  // Subscriber auth gate (shows login/sign-up overlay if not logged in)
+  initAuthGate();
 });
 
 // Extend loadTracker to update bet count
