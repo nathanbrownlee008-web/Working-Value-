@@ -31,9 +31,10 @@ function isValueBetActiveToday(row){
 }
 
 
-// ===== Layout Mode (Compact / Wide) =====
+// ===== Layout Mode (Compact / Wide) + PWA Install =====
 const btnCompact = document.getElementById("btnCompact");
 const btnWide = document.getElementById("btnWide");
+const btnInstall = document.getElementById("btnInstall");
 
 function applyLayout(mode){
   document.body.classList.remove("layout-compact","layout-wide");
@@ -55,7 +56,89 @@ function applyLayout(mode){
   if(btnWide) btnWide.addEventListener("click", ()=>applyLayout("wide"));
 })();
 
-// (Install App / PWA install button removed for now)
+let __deferredInstallPrompt = null;
+
+function __showInstallToast(msg){
+  try{
+    let t = document.getElementById('installToast');
+    if(!t){
+      t = document.createElement('div');
+      t.id = 'installToast';
+      t.style.position = 'fixed';
+      t.style.left = '50%';
+      t.style.bottom = '24px';
+      t.style.transform = 'translateX(-50%)';
+      t.style.background = 'rgba(20,24,32,.92)';
+      t.style.border = '1px solid rgba(255,255,255,.14)';
+      t.style.color = '#e9edf5';
+      t.style.padding = '10px 14px';
+      t.style.borderRadius = '14px';
+      t.style.fontSize = '14px';
+      t.style.zIndex = '9999';
+      t.style.maxWidth = '92vw';
+      t.style.textAlign = 'center';
+      t.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)';
+      t.style.opacity = '0';
+      t.style.transition = 'opacity .18s ease';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.opacity = '1';
+    clearTimeout(window.__installToastTimer);
+    window.__installToastTimer = setTimeout(()=>{ t.style.opacity = '0'; }, 2200);
+  }catch(_){/* noop */}
+}
+
+// Hide the button until the browser tells us installation is available
+if(btnInstall){
+  btnInstall.style.display = 'none';
+  btnInstall.disabled = false;
+}
+
+window.addEventListener('beforeinstallprompt', (e)=>{
+  // Chrome/Edge on Android/desktop
+  e.preventDefault();
+  __deferredInstallPrompt = e;
+  if(btnInstall){
+    btnInstall.style.display = 'inline-flex';
+    btnInstall.disabled = false;
+  }
+});
+
+window.addEventListener('appinstalled', ()=>{
+  __deferredInstallPrompt = null;
+  if(btnInstall){
+    btnInstall.style.display = 'none';
+    btnInstall.disabled = false;
+  }
+});
+
+if(btnInstall){
+  btnInstall.addEventListener('click', async ()=>{
+    if(!__deferredInstallPrompt){
+      // Either already installed, not supported (iOS Safari), or criteria not met yet.
+      __showInstallToast('Install not available yet. In Chrome: ⋮ → Add to Home screen');
+      return;
+    }
+    btnInstall.disabled = true;
+    try{
+      __deferredInstallPrompt.prompt();
+      await __deferredInstallPrompt.userChoice;
+    }catch(_){/* noop */}
+    __deferredInstallPrompt = null;
+    btnInstall.style.display = 'none';
+    btnInstall.disabled = false;
+  });
+}
+  });
+}
+
+// Service worker (PWA offline shell)
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
 
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
@@ -145,9 +228,6 @@ async function loadBets(){
 
 const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
 betsGrid.innerHTML="";
-const betsTable=document.getElementById('betsTable');
-const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
-if(betsTbody) betsTbody.innerHTML = "";
 const active=(data||[]).filter(isValueBetActiveToday);
 if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
  (active || []).forEach(row=>{
@@ -168,25 +248,6 @@ betsGrid.innerHTML+=`
     <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
-
-  // Desktop table row (shown via CSS in WIDE mode on large screens)
-  if(betsTbody){
-    const betDate = row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '');
-    const val = (row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value);
-    const valTxt = val != null ? Number(val).toFixed(1)+'%' : '—';
-    betsTbody.innerHTML += `
-      <tr>
-        <td><b>${escapeHtml(row.match||'')}</b></td>
-        <td>${escapeHtml(row.market||'')}</td>
-        <td><span class="pill">${escapeHtml(String(row.odds??''))}</span></td>
-        <td><span class="pill">${escapeHtml(valTxt)}</span></td>
-        <td>${escapeHtml(betDate)}</td>
-        <td>
-          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
-        </td>
-      </tr>
-    `;
-  }
 });
 }
 
@@ -794,115 +855,8 @@ a.click();
 });
 }
 
-// App init is now gated behind subscriber auth (so we don't load private data
-// before a user logs in).
-let __appInitialized = false;
-async function initAppOnce(){
-  if(__appInitialized) return;
-  __appInitialized = true;
-  await loadBets();
-  await loadTracker();
-}
-
-function setLocked(locked){
-  document.body.classList.toggle("locked", !!locked);
-  // Show logout button only when authenticated
-  const logoutBtn = document.getElementById("btnLogout");
-  if (logoutBtn) logoutBtn.style.display = locked ? "none" : "inline-flex";
-}
-
-async function initAuthGate(){
-  // Default to locked to avoid flicker of private content
-  setLocked(true);
-
-  const msgEl = document.getElementById("authMsg");
-  const setMsg = (t)=>{ if(msgEl){ msgEl.textContent = t || ""; } };
-
-  const emailEl = document.getElementById("authEmail");
-  const passEl  = document.getElementById("authPassword");
-  const btnLogin  = document.getElementById("btnLogin");
-  const btnSignup = document.getElementById("btnSignup");
-
-  // If the gate UI isn't present, just unlock and run.
-  if(!emailEl || !passEl || !btnLogin){
-    setLocked(false);
-    await initAppOnce();
-    return;
-  }
-
-  if(session){
-    setLocked(false);
-    await initAppOnce();
-  }else{
-    setMsg("Please log in to view subscriber content.");
-  }
-
-  btnLogin.addEventListener("click", async ()=>{
-    try{
-      setMsg("Logging in...");
-      const email = (emailEl.value || "").trim();
-      const password = passEl.value || "";
-      if(error) throw error;
-      setLocked(false);
-      setMsg("");
-      await initAppOnce();
-    }catch(e){
-      setLocked(true);
-      setMsg(e?.message || "Login failed.");
-    }
-  });
-
-  if(btnSignup){
-    btnSignup.addEventListener("click", async ()=>{
-      try{
-        setMsg("Creating account...");
-        const email = (emailEl.value || "").trim();
-        const password = passEl.value || "";
-          email,
-          password,
-          options: {
-            // Helps Supabase email-confirm links return users back to your site
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if(error) throw error;
-        // Depending on your Supabase Auth settings, users may need email confirmation.
-        // If confirmation is OFF, they'll be logged in immediately.
-        if(session){
-          setLocked(false);
-          setMsg("");
-          await initAppOnce();
-        }else{
-          setLocked(true);
-          setMsg("Check your email to confirm your account, then log in.");
-        }
-      }catch(e){
-        setLocked(true);
-        setMsg(e?.message || "Sign up failed.");
-      }
-    });
-  }
-
-  // If the user logs in/out in another tab, keep UI in sync.
-    if(newSession){
-      setLocked(false);
-      await initAppOnce();
-    }else{
-      setLocked(true);
-      setMsg("Please log in to view subscriber content.");
-    }
-  });
-
-  // Logout button (shows when logged in)
-  const logoutBtn = document.getElementById("btnLogout");
-  if (logoutBtn && !logoutBtn.dataset.bound) {
-    logoutBtn.dataset.bound = "1";
-    logoutBtn.addEventListener("click", async ()=>{
-      setLocked(true);
-      setMsg("Logged out.");
-    });
-  }
-}
+loadBets();
+loadTracker();
 
 
 // Toggle with animation + memory
@@ -933,9 +887,6 @@ document.addEventListener("DOMContentLoaded",function(){
     wrapper.classList.add("expanded");
     arrow.innerText="▲";
   }
-
-  // Subscriber auth gate (shows login/sign-up overlay if not logged in)
-  initAuthGate();
 });
 
 // Extend loadTracker to update bet count

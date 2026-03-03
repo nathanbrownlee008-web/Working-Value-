@@ -5,33 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // OPTIONAL: override these to match YOUR Supabase project (recommended)
+  // window.__SUPABASE_URL = "https://YOUR_PROJECT.supabase.co";
+  // window.__SUPABASE_KEY = "YOUR_ANON_PUBLIC_KEY";
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="styles.css?v=1772410471"/>
 <!-- PWA manifest removed for now (Install App feature disabled) -->
 <meta name="theme-color" content="#0b1220"/>
 <link rel="apple-touch-icon" href="icons/icon-192.png"/>
 </head>
-<body class="locked">
-  <!-- Subscriber Login / Sign-up Gate -->
-  <div id="authGate" class="auth-gate" aria-hidden="false">
-    <div class="auth-card">
-      <h2>Subscriber Access</h2>
-      <p class="auth-sub">Log in (or sign up) to view Top Daily Tips.</p>
-
-      <label class="auth-label" for="authEmail">Email</label>
-      <input id="authEmail" class="auth-input" type="email" autocomplete="email" placeholder="you@example.com" />
-
-      <label class="auth-label" for="authPassword">Password</label>
-      <input id="authPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="••••••••" />
-
-      <div class="auth-actions">
-        
-        <button id="btnSignup" class="auth-btn auth-btn-secondary" type="button">Sign up</button>
-      </div>
-
-      <div id="authMsg" class="auth-msg"></div>
-    </div>
-  </div>
+<body>
 
 <header class="main-header">
 <h1 class="logo-3d">Top Daily Tips</h1>
@@ -45,8 +31,7 @@
     <button id="btnCompact" class="layout-btn">Compact</button>
     <button id="btnWide" class="layout-btn">Wide</button>
   </div>
-  <button id="btnLogout" class="layout-btn logout-btn" type="button" style="display:none">Log out</button>
-  <!-- Install App button removed for now -->
+<!-- Install App button removed for now -->
 </div>
 </header>
 
@@ -142,5 +127,14 @@
 </section>
 
 <script src="app.js?v=1772410471"></script>
+<div id="authModal" class="modal hidden" aria-hidden="true">
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations()
+      .then(regs => regs.forEach(r => r.unregister()))
+      .catch(() => {});
+  }
+</script>
 </body>
 </html>
