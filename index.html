@@ -6,10 +6,7 @@
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="styles.css?v=1772410471"/>
-<!-- PWA manifest removed for now (Install App feature disabled) -->
-<meta name="theme-color" content="#0b1220"/>
-<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<link rel="stylesheet" href="styles.css"/>
 </head>
 <body>
 
@@ -20,35 +17,10 @@
 <button id="tabTracker">Tracker</button>
 <button id="tabHistory">Daily History</button>
 </div>
-<div class="top-controls">
-  <div class="layout-switch" role="group" aria-label="Layout">
-    <button id="btnCompact" class="layout-btn">Compact</button>
-    <button id="btnWide" class="layout-btn">Wide</button>
-  </div>
-  <!-- Install App button removed for now -->
-</div>
 </header>
 
 <section id="betsSection">
-<!-- Mobile/compact cards -->
 <div id="betsGrid" class="bets-grid"></div>
-
-<!-- Desktop/wide table -->
-<div class="bets-table-wrap">
-  <table id="betsTable" class="bets-table">
-    <thead>
-      <tr>
-        <th>Match</th>
-        <th>Market</th>
-        <th>Odds</th>
-        <th>Value</th>
-        <th>Date</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
 </section>
 
 <section id="trackerSection" style="display:none;">
@@ -117,9 +89,9 @@
 <section id="historySection" style="display:none;">
   <!-- History shows all days stacked; tap a day to expand/collapse. -->
   <div id="historySummary" class="history-summary"></div>
-  <div id="historyList" class="history-grid"></div>
+  <div id="historyList" class="bets-grid history-grid"></div>
 </section>
 
-<script src="app.js?v=1772410471"></script>
+<script src="app.js"></script>
 </body>
 </html>
