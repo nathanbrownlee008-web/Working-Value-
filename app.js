@@ -311,14 +311,31 @@ async function loadBets(){
 
   let data = null;
   if(!session){
-    const today = new Date().toISOString().slice(0,10);
-    const res = await client.rpc("get_public_value_bets", { p_date: today });
+    // Public preview (no login): show the first 10 bets for the *latest* available day.
+    // This avoids the page looking empty when you haven't added today's bets yet.
+    const { data: latest, error: latestErr } = await client
+      .from("value_bets_feed_preview")
+      .select("bet_date")
+      .order("bet_date", { ascending: false })
+      .limit(1);
+    if(latestErr) throw latestErr;
+    const dateStr = latest?.[0]?.bet_date || new Date().toISOString().slice(0,10);
+
+    const res = await client
+      .from("value_bets_feed_preview")
+      .select("*")
+      .eq("bet_date", dateStr)
+      .order("value_pct", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(FREE_BETS_LIMIT);
+    if(res.error) throw res.error;
     data = res.data;
   } else {
     const res = await client.from("value_bets_feed")
       .select("*")
       .order("value_pct",{ascending:false,nullsFirst:false})
       .order("created_at",{ascending:false});
+    if(res.error) throw res.error;
     data = res.data;
   }
 
