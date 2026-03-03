@@ -5,36 +5,11 @@ body{background:#0f172a;color:#e2e8f0;font-family:Inter,sans-serif;margin:0;padd
 .tabs button{background:#1e293b;color:#fff;border:none;padding:8px 16px;border-radius:8px;margin:0 5px;cursor:pointer}
 .tabs .active{background:#334155}
 
-/* Value Bets: keep cards readable on mobile (single column).
-   Wider multi-column layouts are enabled only on larger screens via layout toggles below. */
 .bets-grid{
   display:grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap:10px;
 }
-
-.history-grid{
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-body.layout-wide .history-grid{
-  grid-template-columns: 1fr !important;
-}
-
-/* Daily History should always be one row per day (prevents overlap in "desktop mode" on mobile) */
-/* Value Bets - desktop table view (shown in WIDE mode on large screens) */
-.bets-table-wrap{max-width:1200px;margin:0 auto;padding:0 16px}
-.bets-table{width:100%;border-collapse:separate;border-spacing:0 10px;display:none}
-.bets-table thead th{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(180,205,230,.75);text-align:left;padding:0 14px 8px}
-.bets-table tbody tr{background:rgba(30,41,59,0.70);border:1px solid rgba(255,255,255,0.06)}
-.bets-table tbody td{padding:14px;color:rgba(240,248,255,.92);vertical-align:middle}
-.bets-table tbody tr td:first-child{border-left:4px solid rgba(0,255,140,.35);border-top-left-radius:14px;border-bottom-left-radius:14px}
-.bets-table tbody tr td:last-child{border-top-right-radius:14px;border-bottom-right-radius:14px;text-align:right;white-space:nowrap}
-.bets-table .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.12);font-weight:800}
-.bets-table .btn{padding:10px 16px;border-radius:999px;border:1px solid rgba(0,255,140,.35);background:rgba(0,0,0,.25);color:#dfffea;font-weight:900;cursor:pointer}
-.bets-table .btn.added{background:rgba(0,255,140,.10)}
 .card{
   background: rgba(30,41,59,0.70);
   border: 1px solid rgba(255,255,255,0.06);
@@ -1053,17 +1028,9 @@ th{text-align:left}
   margin-top: 10px;
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;              /* mobile: allow wrap so it never feels "zoomed out" */
-  overflow-x: visible;
+  flex-wrap: nowrap;            /* keep Won/Lost/Pending on one line */
+  overflow-x: auto;             /* safety on very small screens */
   -webkit-overflow-scrolling: touch;
-}
-
-/* Desktop Wide: keep chips on one line like Tracker */
-@media (min-width: 900px){
-  body.layout-wide .history-day-chips{
-    flex-wrap: nowrap;
-    overflow-x: auto;
-  }
 }
 
 /* when chips are placed inside the header button */
@@ -1139,290 +1106,120 @@ th{text-align:left}
 
 .history-day.collapsed .history-day-bets { display: none; }
 
-
-/* ---- Daily History header: inline chips, neat fit ---- */
-.daily-toggle.history-toggle{
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.daily-toggle-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  white-space: nowrap;
-  min-width: 0;
-}
-
-.daily-toggle-left span{
-  overflow:hidden;
-  text-overflow: ellipsis;
-  max-width: 170px;
-  display:inline-block;
-  vertical-align: bottom;
-}
-
-.daily-toggle-center{
-  min-width: 0;
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  flex-wrap: nowrap;
-  overflow: visible;
-}
-
-.daily-toggle-center .history-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.daily-toggle-right{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  white-space: nowrap;
-}
-
-/* Mobile: keep the SAME header button, but stack chips UNDER the date so all are visible */
-@media (max-width: 520px){
-  .daily-toggle.history-toggle{
-    grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "left right"
-      "chips chips";
-    row-gap: 10px;
-  }
-
-  .daily-toggle-left{ grid-area: left; }
-  .daily-toggle-right{ grid-area: right; }
-
-  .daily-toggle-center{
-    grid-area: chips;
-    justify-content:flex-start;
-    gap:10px;
-    overflow-x: auto;                 /* safety for super small devices */
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding-bottom: 2px;
-  }
-  .daily-toggle-center::-webkit-scrollbar{ display:none; }
-
-  .daily-toggle-left span{ max-width: 220px; }
-
-  .daily-toggle-center .history-chip{
-    padding: 7px 10px;
-    font-size: 13px;
-  }
-}
-
-/* Very small phones: slightly tighter chips but still visible */
-@media (max-width: 380px){
-  .daily-toggle-left span{ max-width: 160px; }
-  .daily-toggle-center .history-chip{ padding: 6px 9px; font-size: 12px; gap:6px; }
-}
-
-.daily-toggle-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  white-space: nowrap;
-}
-
-.daily-toggle-left span{
-  overflow:hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-  display:inline-block;
-  vertical-align: bottom;
-}
-
-.daily-toggle-center{
-  min-width: 0;
-  display:flex;
-  justify-content:center;
-  gap:10px;
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-
-.daily-toggle-center .history-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-.daily-toggle-center .history-chip span{
-  opacity: 0.85;
-}
-
-.daily-toggle-center .history-chip strong{
-  font-weight: 900;
-}
-
-.daily-toggle-right{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  white-space: nowrap;
-}
-
-/* Small phones: keep inline, slightly tighter text */
-@media (max-width: 420px){
-  .daily-toggle-left span{ max-width: 120px; }
-  .daily-toggle-center{ justify-content:flex-start; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
-  .daily-toggle-center::-webkit-scrollbar{ display:none; }
-  .daily-toggle-center .history-chip{ padding: 6px 9px; font-size: 12px; gap:6px; }
-  .daily-toggle-center .history-chip span{ display:none; } /* hide labels only on very small screens */
-}
-
-
-/* ---- Daily History Winrate ---- */
-.history-ratio-wrap{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  line-height:1.1;
-}
-
-.history-winrate{
-  font-size:12px;
-  opacity:0.75;
-  margin-top:4px;
-}
-
-@media (max-width:520px){
-  .history-winrate{ font-size:11px; }
-}
-
-
-/* ---- Winrate label styling + alignment ---- */
-.history-ratio-wrap{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  line-height:1.1;
-}
-
-/* push winrate slightly lower so it aligns visually with the chip row */
-.history-winrate{
-  font-size:14px;          /* bigger */
-  font-weight:800;
-  opacity:0.92;
-  margin-top:10px;         /* moved down */
-  letter-spacing:0.2px;
-}
-
-/* colour by winrate */
-.history-winrate.wr-hot{ color: rgba(34,197,94,0.95); text-shadow: 0 0 14px rgba(34,197,94,0.25); }
-.history-winrate.wr-good{ color: rgba(34,197,94,0.85); }
-.history-winrate.wr-mid{ color: rgba(245,158,11,0.90); }
-.history-winrate.wr-bad{ color: rgba(239,68,68,0.90); }
-
-/* small phones */
-@media (max-width:520px){
-  .history-winrate{ font-size:13px; margin-top:10px; }
-}
-
-/* ===== Layout Mode (Compact / Wide) ===== */
-:root{
-  --app-max: 980px;
-  --app-pad: 18px;
-  --card-radius: 18px;
-  --font-scale: 1;
-}
-
-body{
-  max-width: var(--app-max);
-  margin: 0 auto;
-  padding: var(--app-pad);
-  transform: scale(var(--font-scale));
-  transform-origin: top center;
-}
-
-/* Compact: slightly tighter + smaller max width */
-body.layout-compact{
-  --app-max: 760px;
-  --app-pad: 14px;
-  --font-scale: 1;
-}
-
-/* Wide: breathe on desktop */
-body.layout-wide{
-  /* On small screens Wide behaves like Compact; wide spacing kicks in on desktop via media query below */
-  --app-max: 760px;
-  --app-pad: 14px;
-  --font-scale: 1;
-}
-
-/* Top controls row */
-.top-controls{
+/* ===== Paywall + Auth Modal ===== */
+.paywall-banner{
+  margin: 12px auto 14px;
+  max-width: 1100px;
+  padding: 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:12px;
-  margin: 10px 0 14px 0;
+  gap: 10px;
+  flex-wrap: wrap;
 }
-
-.layout-switch{
-  display:inline-flex;
-  gap:0;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  overflow:hidden;
-}
-
-.layout-btn{
-  border: none;
-  background: transparent;
-  color: rgba(255,255,255,0.88);
-  padding: 8px 12px;
-  font-weight: 900;
+.paywall-banner .pw-left{
   font-size: 13px;
-  cursor: pointer;
+  opacity: 0.92;
+}
+.paywall-banner .pw-left strong{ font-weight: 900; }
+.paywall-banner .pw-actions{ display:flex; gap:8px; flex-wrap: wrap; }
+.pw-btn{
+  border-radius: 999px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color:#fff;
+  font-weight: 900;
+  font-size: 12px;
+  cursor:pointer;
+}
+.pw-btn.primary{
+  background: rgba(34,197,94,0.16);
+  border-color: rgba(34,197,94,0.30);
+}
+.pw-btn.warn{
+  background: rgba(245,158,11,0.14);
+  border-color: rgba(245,158,11,0.30);
 }
 
-.layout-btn.active{
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.98);
+.auth-modal{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 18px;
+}
+.auth-modal-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(10px);
+}
+.auth-modal-card{
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(78vh, 740px);
+  overflow: auto;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(15,23,42,0.90);
+  padding: 16px;
+  color: rgba(255,255,255,0.92);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+}
+.auth-modal-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom: 6px;
+}
+.auth-x{
+  border:none;
+  background: rgba(255,255,255,0.08);
+  color:#fff;
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-weight: 900;
+  cursor:pointer;
 }
 
-
-/* Wide layout: apply multi-column / extra spacing only when there's room */
-@media (min-width: 900px){
-  body.layout-wide{
-    --app-max: 1180px;
-    --app-pad: 22px;
-  }
-  body.layout-wide .bets-grid{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide }
-
-@media (min-width: 1200px){
-  body.layout-wide .bets-grid{
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-body.layout-wide body.layout-wide /* Keep Daily History as single-column even in Wide layout */
-  .layout-wide }
-
-/* In WIDE mode on desktop, Value Bets switches to table rows */
-@media (min-width: 980px){
-  body.layout-wide #betsGrid{display:none}
-  body.layout-wide .bets-table{display:table}
+.locked{
+  position: relative;
+  filter: blur(2px);
+  opacity: 0.75;
+  pointer-events: none;
+  user-select: none;
 }
-
-
-
+.lock-overlay{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 14px;
+  pointer-events: auto;
+}
+.lock-overlay .lock-card{
+  width: min(420px, 92%);
+  padding: 12px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(8px);
+  text-align:center;
+}
+.lock-overlay .lock-title{
+  font-weight: 900;
+  margin-bottom: 6px;
+}
+.lock-overlay .lock-sub{
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}

@@ -1,125 +1,115 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html>
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
 <title>Top Daily Tips</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="styles.css?v=1772410471"/>
-<!-- PWA manifest removed for now (Install App feature disabled) -->
-<meta name="theme-color" content="#0b1220"/>
-<link rel="apple-touch-icon" href="icons/icon-192.png"/>
-</head>
+<link href="styles.css?v=1772491881" rel="stylesheet"/>
+<link href="manifest.json" rel="manifest"/><meta content="#07111f" name="theme-color"/></head>
 <body>
-
 <header class="main-header">
 <h1 class="logo-3d">Top Daily Tips</h1>
 <div class="tabs">
-<button id="tabBets" class="active">Value Bets</button>
+<button class="active" id="tabBets">Value Bets</button>
 <button id="tabTracker">Tracker</button>
 <button id="tabHistory">Daily History</button>
 </div>
-<div class="top-controls">
-  <div class="layout-switch" role="group" aria-label="Layout">
-    <button id="btnCompact" class="layout-btn">Compact</button>
-    <button id="btnWide" class="layout-btn">Wide</button>
-  </div>
-  <!-- Install App button removed for now -->
-</div>
 </header>
-
 <section id="betsSection">
-<!-- Mobile/compact cards -->
-<div id="betsGrid" class="bets-grid"></div>
-
-<!-- Desktop/wide table -->
-<div class="bets-table-wrap">
-  <table id="betsTable" class="bets-table">
-    <thead>
-      <tr>
-        <th>Match</th>
-        <th>Market</th>
-        <th>Odds</th>
-        <th>Value</th>
-        <th>Date</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
+<div class="paywall-banner" id="paywallBanner" style="display:none;"></div>
+<div class="bets-grid" id="betsGrid"></div>
 </section>
-
 <section id="trackerSection" style="display:none;">
-
 <div class="bankroll-section">
-  <div class="bankroll-row">
-    <label>Starting Bankroll</label>
-    <input type="number" id="startingBankroll" value="290" />
-    <button onclick="exportCSV()">Export CSV</button>
-  </div>
+<div class="bankroll-row">
+<label>Starting Bankroll</label>
+<input id="startingBankroll" type="number" value="290"/>
+<button onclick="exportCSV()">Export CSV</button>
 </div>
-
+</div>
 <div class="stats-grid">
-<div class="stat-card">Bankroll<br><strong>£<span id="bankroll">0</span></strong></div>
-<div class="stat-card" id="profitCard">Profit<br><strong>£<span id="profit">0</span></strong></div>
-<div class="stat-card">ROI<br><strong><span id="roi">0</span>%</strong></div>
-<div class="stat-card">Win Rate<br><strong><span id="winrate">0</span>%</strong></div>
-<div class="stat-card">Won - Lost<br><strong><span id="wonLost">0-0</span></strong></div>
-<div class="stat-card">Staked<br><strong>£<span id="totalStakedCard">0</span></strong></div>
-<div class="stat-card">Avg Odds<br><strong><span id="avgOdds">0</span></strong></div>
-<div class="stat-card">Total Bets<br><strong><span id="totalBets">0</span></strong></div>
+<div class="stat-card">Bankroll<br/><strong>£<span id="bankroll">0</span></strong></div>
+<div class="stat-card" id="profitCard">Profit<br/><strong>£<span id="profit">0</span></strong></div>
+<div class="stat-card">ROI<br/><strong><span id="roi">0</span>%</strong></div>
+<div class="stat-card">Win Rate<br/><strong><span id="winrate">0</span>%</strong></div>
+<div class="stat-card">Won - Lost<br/><strong><span id="wonLost">0-0</span></strong></div>
+<div class="stat-card">Staked<br/><strong>£<span id="totalStakedCard">0</span></strong></div>
+<div class="stat-card">Avg Odds<br/><strong><span id="avgOdds">0</span></strong></div>
+<div class="stat-card">Total Bets<br/><strong><span id="totalBets">0</span></strong></div>
 </div>
-
 <div class="chart-tabs">
-  <button class="tab-btn active" data-tab="daily">Daily</button>
-  <button class="tab-btn" data-tab="monthly">Monthly</button>
-  <button class="tab-btn" data-tab="market">Markets</button>
+<button class="tab-btn active" data-tab="daily">Daily</button>
+<button class="tab-btn" data-tab="monthly">Monthly</button>
+<button class="tab-btn" data-tab="market">Markets</button>
 </div>
-
 <div class="chart-wrap">
-  <div class="chart-pane active" id="pane-daily">
-    <canvas id="chart"></canvas>
-  </div>
-  <div class="chart-pane" id="pane-monthly">
-  <canvas id="monthlyChart"></canvas>
-
-  <div class="monthly-breakdown">
-    <div class="monthly-toggle" onclick="toggleMonthly()">
+<div class="chart-pane active" id="pane-daily">
+<canvas id="chart"></canvas>
+</div>
+<div class="chart-pane" id="pane-monthly">
+<canvas id="monthlyChart"></canvas>
+<div class="monthly-breakdown">
+<div class="monthly-toggle" onclick="toggleMonthly()">
       📊 Monthly Breakdown
       <span id="monthlyArrow">▼</span>
-    </div>
-
-    <div id="monthlyWrapper" class="collapsed">
-      <div id="monthlyTable"></div>
-    </div>
-  </div>
-
 </div>
-  <div class="chart-pane" id="pane-market">
-    <canvas id="marketChart"></canvas>
-  </div>
+<div class="collapsed" id="monthlyWrapper">
+<div id="monthlyTable"></div>
 </div>
-
+</div>
+</div>
+<div class="chart-pane" id="pane-market">
+<canvas id="marketChart"></canvas>
+</div>
+</div>
 <div class="tracker-history">
-  <div class="tracker-toggle" onclick="toggleTracker()">
+<div class="tracker-toggle" onclick="toggleTracker()">
     📈 Bet Results (<span id="betCount">0</span>)
     <span id="trackerArrow">▼</span>
-  </div>
-  <div id="trackerWrapper" class="collapsed">
-    <div id="trackerTable"></div>
-  </div>
 </div>
-
+<div class="collapsed" id="trackerWrapper">
+<div id="trackerTable"></div>
+</div>
+</div>
 </section>
-
 <section id="historySection" style="display:none;">
-  <!-- History shows all days stacked; tap a day to expand/collapse. -->
-  <div id="historySummary" class="history-summary"></div>
-  <div id="historyList" class="history-grid"></div>
+<!-- History shows all days stacked; tap a day to expand/collapse. -->
+<div class="history-summary" id="historySummary"></div>
+<div class="bets-grid history-grid" id="historyList"></div>
 </section>
-
-<script src="app.js?v=1772410471"></script>
+<script src="app.js?v=1772491881"></script>
+<div aria-hidden="true" class="auth-modal" id="authModal" style="display:none;">
+<div class="auth-modal-backdrop" data-close="1"></div>
+<div aria-label="Login" aria-modal="true" class="auth-modal-card" role="dialog">
+<div class="auth-modal-head">
+<div>
+<div class="auth-title">Subscriber Login</div>
+<div class="auth-sub">Log in to unlock Tracker, History, and all bets.</div>
+</div>
+<button aria-label="Close" class="auth-x" id="authClose">✕</button>
+</div>
+<div class="auth-row">
+<label class="auth-label" for="authEmail">Email</label>
+<input autocomplete="email" class="auth-input" id="authEmail" placeholder="you@example.com" type="email"/>
+</div>
+<div class="auth-row">
+<label class="auth-label" for="authPassword">Password</label>
+<input autocomplete="current-password" class="auth-input" id="authPassword" placeholder="••••••••" type="password"/>
+</div>
+<div class="auth-actions">
+<button class="auth-btn primary" id="btnLogin">Log in</button>
+<button class="auth-btn" id="btnSignup">Sign up</button>
+<button class="auth-btn" id="btnMagic">Magic link</button>
+</div>
+<div aria-live="polite" class="auth-msg" id="authMsg"></div>
+<div class="auth-divider"></div>
+<div class="auth-foot">
+<button class="auth-link" id="btnLogout" style="display:none;">Log out</button>
+</div>
+</div>
+</div>
 </body>
 </html>
