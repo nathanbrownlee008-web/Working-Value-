@@ -3,32 +3,80 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-function pad2(n){return String(n).padStart(2,'0');}
-function toLocalYMD(d=new Date()){
-  const yr=d.getFullYear();
-  const mo=pad2(d.getMonth()+1);
-  const da=pad2(d.getDate());
-  return `${yr}-${mo}-${da}`;
+// ---------------------------
+// Date helpers (UTC-safe)
+// ---------------------------
+// We compare day keys as YYYY-MM-DD strings.
+// Using UTC avoids the classic "created_at is UTC but device is local" mismatch.
+function toUtcYMD(d=new Date()){
+  return new Date(d).toISOString().slice(0,10);
 }
+
 function normalizeDateOnly(value){
   if(!value) return null;
   if(typeof value==='string'){
+    // already a date-only string
     if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
     const dt=new Date(value);
-    if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+    if(!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0,10);
     return null;
   }
   const dt=new Date(value);
-  if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+  if(!Number.isNaN(dt.getTime())) return dt.toISOString().slice(0,10);
   return null;
 }
+
 function isValueBetActiveToday(row){
-  const today=toLocalYMD(new Date());
-  const start=normalizeDateOnly(row.bet_date) || normalizeDateOnly(row.created_at);
-  const end=normalizeDateOnly(row.bet_end_date) || start;
+  const today=toUtcYMD(new Date());
+  const start=normalizeDateOnly(row?.bet_date) || normalizeDateOnly(row?.created_at);
+  const end=normalizeDateOnly(row?.bet_end_date) || start;
   if(!start) return false;
   return today >= start && today <= end;
 }
+
+// ---------------------------
+// Live refresh for the Value Bets feed
+// ---------------------------
+let __feedSub = null;
+let __feedReloadTimer = null;
+
+function scheduleFeedReload(reason){
+  // Debounce bursts of events into one reload.
+  if(__feedReloadTimer) clearTimeout(__feedReloadTimer);
+  __feedReloadTimer = setTimeout(()=>{
+    __feedReloadTimer = null;
+    if(typeof loadBets === 'function') loadBets();
+  }, 350);
+}
+
+function setupFeedRealtime(){
+  try{
+    // Avoid double-subscribing (e.g. accidental multiple loads)
+    if(__feedSub){
+      try{ client.removeChannel(__feedSub); }catch(e){}
+      __feedSub = null;
+    }
+
+    __feedSub = client
+      .channel('value-bets-feed-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'value_bets_feed' }, (payload)=>{
+        scheduleFeedReload(payload?.eventType || 'change');
+      })
+      .subscribe();
+  }catch(e){
+    // ignore
+  }
+}
+
+// Also refresh when the app comes back into focus (common on mobile)
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') scheduleFeedReload('visible');
+});
+
+// Minimal polling fallback (harmless even when realtime works)
+setInterval(()=>{
+  if(document.visibilityState === 'visible') scheduleFeedReload('poll');
+}, 60000);
 
 
 // ===== Layout Mode (Compact / Wide) =====
@@ -793,6 +841,9 @@ a.download="bet_tracker.csv";
 a.click();
 });
 }
+
+// Keep the Bets feed in sync with Supabase inserts/updates/deletes
+setupFeedRealtime();
 
 loadBets();
 loadTracker();
