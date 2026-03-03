@@ -762,59 +762,21 @@ if(monthKeys.length){
 }
 
 
-async function updateStake(id, val) {
-  const stake = parseFloat(val);
-  const { error } = await client
-    .from("bet_tracker")
-    .update({ stake: Number.isFinite(stake) ? stake : 0 })
-    .eq("id", id);
-
-  if (error) {
-    console.error("updateStake error:", error);
-    alert(
-      "Could not update stake. This is usually blocked by Supabase RLS/policies.\n\n" +
-        (error.message || JSON.stringify(error))
-    );
-  }
-  loadTracker();
+async function updateStake(id,val){
+await client.from("bet_tracker").update({stake:parseFloat(val)}).eq("id",id);
+loadTracker();
 }
 
-async function updateResult(id, val) {
-  if (val === "delete") {
-    if (!confirm("Delete this bet?")) {
-      loadTracker();
-      return;
-    }
-    const { error } = await client.from("bet_tracker").delete().eq("id", id);
-
-    if (error) {
-      console.error("delete bet error:", error);
-      alert(
-        "Could not delete bet. This is usually blocked by Supabase RLS/policies.\n\n" +
-          (error.message || JSON.stringify(error))
-      );
-      loadTracker();
-      return;
-    }
-
-    // Refresh the Value Bets feed so the button switches back from "Added" to "Add".
-    loadValueBets();
-  } else {
-    const { error } = await client
-      .from("bet_tracker")
-      .update({ result: val })
-      .eq("id", id);
-
-    if (error) {
-      console.error("updateResult error:", error);
-      alert(
-        "Could not update result. This is usually blocked by Supabase RLS/policies.\n\n" +
-          (error.message || JSON.stringify(error))
-      );
-    }
-  }
-
-  loadTracker();
+async function updateResult(id,val){
+if(val==="delete"){
+if(!confirm("Delete this bet?")){loadTracker();return;}
+await client.from("bet_tracker").delete().eq("id",id);
+// Refresh the Value Bets feed so the button switches back from "Added" to "Add".
+loadBets();
+}else{
+await client.from("bet_tracker").update({result:val}).eq("id",id);
+}
+loadTracker();
 }
 
 function exportCSV(){
@@ -832,121 +794,8 @@ a.click();
 });
 }
 
-// App init is now gated behind subscriber auth (so we don't load private data
-// before a user logs in).
-let __appInitialized = false;
-async function initAppOnce(){
-  if(__appInitialized) return;
-  __appInitialized = true;
-  await loadBets();
-  await loadTracker();
-}
-
-function setLocked(locked){
-  document.body.classList.toggle("locked", !!locked);
-  // Show logout button only when authenticated
-  const logoutBtn = document.getElementById("btnLogout");
-  if (logoutBtn) logoutBtn.style.display = locked ? "none" : "inline-flex";
-}
-
-async function initAuthGate(){
-  // Default to locked to avoid flicker of private content
-  setLocked(true);
-
-  const msgEl = document.getElementById("authMsg");
-  const setMsg = (t)=>{ if(msgEl){ msgEl.textContent = t || ""; } };
-
-  const emailEl = document.getElementById("authEmail");
-  const passEl  = document.getElementById("authPassword");
-  const btnLogin  = document.getElementById("btnLogin");
-  const btnSignup = document.getElementById("btnSignup");
-
-  // If the gate UI isn't present, just unlock and run.
-  if(!emailEl || !passEl || !btnLogin){
-    setLocked(false);
-    await initAppOnce();
-    return;
-  }
-
-  const { data: { session } } = await client.auth.getSession();
-  if(session){
-    setLocked(false);
-    await initAppOnce();
-  }else{
-    setMsg("Please log in to view subscriber content.");
-  }
-
-  btnLogin.addEventListener("click", async ()=>{
-    try{
-      setMsg("Logging in...");
-      const email = (emailEl.value || "").trim();
-      const password = passEl.value || "";
-      const { error } = await client.auth.signInWithPassword({ email, password });
-      if(error) throw error;
-      setLocked(false);
-      setMsg("");
-      await initAppOnce();
-    }catch(e){
-      setLocked(true);
-      setMsg(e?.message || "Login failed.");
-    }
-  });
-
-  if(btnSignup){
-    btnSignup.addEventListener("click", async ()=>{
-      try{
-        setMsg("Creating account...");
-        const email = (emailEl.value || "").trim();
-        const password = passEl.value || "";
-        const { error } = await client.auth.signUp({
-          email,
-          password,
-          options: {
-            // Helps Supabase email-confirm links return users back to your site
-            emailRedirectTo: window.location.origin,
-          },
-        });
-        if(error) throw error;
-        // Depending on your Supabase Auth settings, users may need email confirmation.
-        // If confirmation is OFF, they'll be logged in immediately.
-        const { data: { session } } = await client.auth.getSession();
-        if(session){
-          setLocked(false);
-          setMsg("");
-          await initAppOnce();
-        }else{
-          setLocked(true);
-          setMsg("Check your email to confirm your account, then log in.");
-        }
-      }catch(e){
-        setLocked(true);
-        setMsg(e?.message || "Sign up failed.");
-      }
-    });
-  }
-
-  // If the user logs in/out in another tab, keep UI in sync.
-  client.auth.onAuthStateChange(async (_event, newSession)=>{
-    if(newSession){
-      setLocked(false);
-      await initAppOnce();
-    }else{
-      setLocked(true);
-      setMsg("Please log in to view subscriber content.");
-    }
-  });
-
-  // Logout button (shows when logged in)
-  const logoutBtn = document.getElementById("btnLogout");
-  if (logoutBtn && !logoutBtn.dataset.bound) {
-    logoutBtn.dataset.bound = "1";
-    logoutBtn.addEventListener("click", async ()=>{
-      try { await client.auth.signOut(); } catch(e) {}
-      setLocked(true);
-      setMsg("Logged out.");
-    });
-  }
-}
+loadBets();
+loadTracker();
 
 
 // Toggle with animation + memory
@@ -977,9 +826,6 @@ document.addEventListener("DOMContentLoaded",function(){
     wrapper.classList.add("expanded");
     arrow.innerText="▲";
   }
-
-  // Subscriber auth gate (shows login/sign-up overlay if not logged in)
-  initAuthGate();
 });
 
 // Extend loadTracker to update bet count
