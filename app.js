@@ -3,217 +3,59 @@ const SUPABASE_URL="https://krmmmutcejnzdfupexpv.supabase.co";
 const SUPABASE_KEY="sb_publishable_3NHjMMVw1lai9UNAA-0QZA_sKM21LgD";
 const client=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-
-// ===== Paywall (Free 10) + Subscriber Role =====
-const FREE_BETS_LIMIT = 10;
-
-let currentUser = null;
-let currentProfile = null;
-let isSubscriber = false;
-
-function nowISO(){ return new Date().toISOString(); }
-
-function computeSubscriber(profile){
-  if(!profile) return false;
-  if(profile.is_subscriber === true) return true;
-
-  const now = new Date();
-
-  if(profile.trial_ends_at){
-    const t = new Date(profile.trial_ends_at);
-    if(!Number.isNaN(t.getTime()) && now < t) return true;
+function pad2(n){return String(n).padStart(2,'0');}
+function toLocalYMD(d=new Date()){
+  const yr=d.getFullYear();
+  const mo=pad2(d.getMonth()+1);
+  const da=pad2(d.getDate());
+  return `${yr}-${mo}-${da}`;
+}
+function normalizeDateOnly(value){
+  if(!value) return null;
+  if(typeof value==='string'){
+    if(/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const dt=new Date(value);
+    if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+    return null;
   }
-
-  if(profile.subscription_ends_at){
-    const s = new Date(profile.subscription_ends_at);
-    if(!Number.isNaN(s.getTime()) && now < s) return true;
-  }
-
-  return false;
+  const dt=new Date(value);
+  if(!Number.isNaN(dt.getTime())) return toLocalYMD(dt);
+  return null;
+}
+function isValueBetActiveToday(row){
+  const today=toLocalYMD(new Date());
+  const start=normalizeDateOnly(row.bet_date) || normalizeDateOnly(row.created_at);
+  const end=normalizeDateOnly(row.bet_end_date) || start;
+  if(!start) return false;
+  return today >= start && today <= end;
 }
 
-async function loadProfile(){
-  const { data: sess } = await client.auth.getSession();
-  currentUser = sess?.session?.user || null;
-  if(!currentUser){
-    currentProfile = null;
-    isSubscriber = false;
-    return;
-  }
-  // Fetch profile row
-  const { data, error } = await client
-    .from("profiles")
-    .select("id,email,is_subscriber,trial_ends_at,subscription_ends_at,intro_price_used,offer_chosen,created_at")
-    .eq("id", currentUser.id)
-    .maybeSingle();
 
-  if(error){
-    console.warn("profiles read error:", error.message);
-    currentProfile = null;
-    isSubscriber = false;
-    return;
-  }
-  currentProfile = data || null;
-  isSubscriber = computeSubscriber(currentProfile);
+// ===== Layout Mode (Compact / Wide) =====
+const btnCompact = document.getElementById("btnCompact");
+const btnWide = document.getElementById("btnWide");
+
+function applyLayout(mode){
+  document.body.classList.remove("layout-compact","layout-wide");
+  document.body.classList.add(mode === "wide" ? "layout-wide" : "layout-compact");
+  localStorage.setItem("layout_mode", mode);
+  if(btnCompact) btnCompact.classList.toggle("active", mode !== "wide");
+  if(btnWide) btnWide.classList.toggle("active", mode === "wide");
 }
 
-function setPaywallBanner(html){
-  const el = document.getElementById("paywallBanner");
-  if(!el) return;
-  if(!html){
-    el.style.display = "none";
-    el.innerHTML = "";
-    return;
+(function initLayoutMode(){
+  const saved = localStorage.getItem("layout_mode");
+  if(saved === "wide" || saved === "compact"){
+    applyLayout(saved);
+  }else{
+    // Default: compact on small screens, wide on desktop
+    applyLayout(window.innerWidth >= 950 ? "wide" : "compact");
   }
-  el.style.display = "flex";
-  el.innerHTML = html;
-}
-
-function openAuthModal(){
-  const m = document.getElementById("authModal");
-  if(!m) return;
-  m.style.display = "flex";
-  m.setAttribute("aria-hidden","false");
-}
-function closeAuthModal(){
-  const m = document.getElementById("authModal");
-  if(!m) return;
-  m.style.display = "none";
-  m.setAttribute("aria-hidden","true");
-}
-
-async function refreshGateUI(){
-  await loadProfile();
-
-  // Tabs lock: Tracker + History locked unless subscriber
-  const tTracker = document.getElementById("tabTracker");
-  const tHistory = document.getElementById("tabHistory");
-  const lockText = "🔒 Subscribers only";
-  if(tTracker){
-    tTracker.dataset.locked = (!isSubscriber).toString();
-    tTracker.title = (!isSubscriber) ? lockText : "";
-  }
-  if(tHistory){
-    tHistory.dataset.locked = (!isSubscriber).toString();
-    tHistory.title = (!isSubscriber) ? lockText : "";
-  }
-
-  // Banner (Value Bets)
-  if(isSubscriber){
-    let extra = "";
-    if(currentProfile?.trial_ends_at && currentProfile?.is_subscriber !== true){
-      extra = ` <span style="opacity:.85;">(Trial ends ${new Date(currentProfile.trial_ends_at).toLocaleDateString()})</span>`;
-    }
-    setPaywallBanner(`
-      <div class="pw-left">✅ Full access unlocked${extra}</div>
-      <div class="pw-actions">
-        <button class="pw-btn" id="pwLogout" style="${currentUser ? "" : "display:none;"}">Log out</button>
-      </div>
-    `);
-    const b = document.getElementById("pwLogout");
-    if(b) b.onclick = async ()=>{ await client.auth.signOut(); await refreshGateUI(); };
-    return;
-  }
-
-  // Not subscriber (guest or logged-in non-subscriber)
-  const loggedIn = !!currentUser;
-  const trialActive = currentProfile?.trial_ends_at && new Date(currentProfile.trial_ends_at) > new Date();
-  const subActive = currentProfile?.subscription_ends_at && new Date(currentProfile.subscription_ends_at) > new Date();
-  const offerChosen = (currentProfile?.offer_chosen || "").toLowerCase(); // 'trial' or 'intro'
-  const introUsed = currentProfile?.intro_price_used === true || offerChosen === "intro";
-  const trialUsed = offerChosen === "trial";
-
-  const msg = loggedIn
-    ? `Free preview: first <strong>${FREE_BETS_LIMIT}</strong> bets only. Subscribe to unlock the rest.`
-    : `Free preview: first <strong>${FREE_BETS_LIMIT}</strong> bets only. Log in for more + subscriber access.`;
-
-  // Trial: available to everyone (one-time), 5 days. Intro: first 50 only (one-time).
-  const showTrialBtn = loggedIn && !trialActive && !subActive && !introUsed && !trialUsed;
-  const showIntroBtn = loggedIn && !trialActive && !subActive && !introUsed && !trialUsed;
-
-  const actions = `
-    <button class="pw-btn primary" id="pwLogin">${loggedIn ? "Switch account" : "Log in / Sign up"}</button>
-    <button class="pw-btn warn" id="pwTrial" style="${showTrialBtn ? "" : "display:none;"}">Claim 5‑day free trial</button>
-    <button class="pw-btn warn" id="pwIntro" style="${showIntroBtn ? "" : "display:none;"}">Get 1st month £5 (first 50)</button>
-  `;
-
-  setPaywallBanner(`
-    <div class="pw-left">${msg}</div>
-    <div class="pw-actions">${actions}</div>
-  `);
-
-  const l = document.getElementById("pwLogin");
-  if(l) l.onclick = ()=>openAuthModal();
-
-  const t = document.getElementById("pwTrial");
-  if(t) t.onclick = async ()=>{
-    t.disabled = true;
-    try{
-      const { error } = await client.rpc("claim_trial");
-      if(error) throw error;
-      await refreshGateUI();
-      try{ await loadBets(); }catch(e){}
-    }catch(e){
-      alert(e?.message || "Could not claim trial.");
-    }finally{
-      t.disabled = false;
-    }
-  };
-
-  const intro = document.getElementById("pwIntro");
-  if(intro) intro.onclick = async ()=>{
-    intro.disabled = true;
-    try{
-      const { error } = await client.rpc("claim_intro_offer");
-      if(error) throw error;
-      await refreshGateUI();
-      try{ await loadBets(); }catch(e){}
-    }catch(e){
-      alert(e?.message || "Could not claim intro offer.");
-    }finally{
-      intro.disabled = false;
-    }
-  };
-}
-
-// Intercept tab clicks for locked tabs
-function wireTabLocks(){
-  const tTracker = document.getElementById("tabTracker");
-  const tHistory = document.getElementById("tabHistory");
-  const handler = (e)=>{
-    if(isSubscriber) return;
-    e.preventDefault();
-    e.stopPropagation();
-    openAuthModal();
-  };
-  if(tTracker){
-    tTracker.addEventListener("click", (e)=>{
-      if(tTracker.dataset.locked === "true") handler(e);
-    }, true);
-  }
-  if(tHistory){
-    tHistory.addEventListener("click", (e)=>{
-      if(tHistory.dataset.locked === "true") handler(e);
-    }, true);
-  }
-}
-
-// Auth modal wiring
-(function initAuthModal(){
-  const m = document.getElementById("authModal");
-  if(m){
-    m.addEventListener("click", (e)=>{
-      const tgt = e.target;
-      if(tgt && tgt.getAttribute && tgt.getAttribute("data-close") === "1") closeAuthModal();
-    });
-  }
-  const x = document.getElementById("authClose");
-  if(x) x.addEventListener("click", closeAuthModal);
+  if(btnCompact) btnCompact.addEventListener("click", ()=>applyLayout("compact"));
+  if(btnWide) btnWide.addEventListener("click", ()=>applyLayout("wide"));
 })();
 
-
-// ===== End Paywall (Free 10) + Subscriber Role =====
-
+// (Install App / PWA install button removed for now)
 
 const bankrollElem=document.getElementById("bankroll");
 const profitElem=document.getElementById("profit");
@@ -228,13 +70,10 @@ const profitCard=document.getElementById("profitCard");
 const addedKeys = new Set();
 
 function makeBetKey(row){
-  // Prefer stable IDs if present
-  if(row && row.id != null) return `id:${row.id}`;
-  const m = row?.match ?? '';
-  const mk = row?.market ?? '';
-  const o = row?.odds ?? '';
-  const d = row?.bet_date ?? row?.match_date ?? row?.created_at ?? '';
-  return `k:${m}|${mk}|${o}|${d}`;
+  const match = (row?.match ?? "").toString().trim();
+  const market = (row?.market ?? "").toString().trim();
+  const odds = (row?.odds ?? "").toString().trim();
+  return `k:${match}|${market}|${odds}`;
 }
 
 // Top navigation tabs
@@ -250,8 +89,9 @@ if(historyListEl){
     const dayKey = btn.dataset.day;
     if(!dayKey) return;
     // Daily History accordion: default collapsed, store open state per day.
-    window.__historyOpen = window.__historyOpen || {};
+    window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
     window.__historyOpen[dayKey] = !window.__historyOpen[dayKey];
+    localStorage.setItem('history_open', JSON.stringify(window.__historyOpen));
     renderHistory();
   });
 }
@@ -303,46 +143,14 @@ async function loadBets(){
     // Ignore preload failures
   }
 
-  // Fetch bets with a real paywall:
-  // - Not logged in: only returns the first 10 bets for today via RPC (database-enforced).
-  // - Logged in + subscriber: can read the full feed via RLS.
-  const { data: sessionData } = await client.auth.getSession();
-  const session = sessionData?.session || null;
-
-  let data = null;
-  if(!session){
-    // Public preview (no login): show the first 10 bets for the *latest* available day.
-    // This avoids the page looking empty when you haven't added today's bets yet.
-    const { data: latest, error: latestErr } = await client
-      .from("value_bets_feed_preview")
-      .select("bet_date")
-      .order("bet_date", { ascending: false })
-      .limit(1);
-    if(latestErr) throw latestErr;
-    const dateStr = latest?.[0]?.bet_date || new Date().toISOString().slice(0,10);
-
-    const res = await client
-      .from("value_bets_feed_preview")
-      .select("*")
-      .eq("bet_date", dateStr)
-      .order("value_pct", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(FREE_BETS_LIMIT);
-    if(res.error) throw res.error;
-    data = res.data;
-  } else {
-    const res = await client.from("value_bets_feed")
-      .select("*")
-      .order("value_pct",{ascending:false,nullsFirst:false})
-      .order("created_at",{ascending:false});
-    if(res.error) throw res.error;
-    data = res.data;
-  }
-
-  betsGrid.innerHTML="";
-  if(!data || !data.length){ betsGrid.innerHTML = `<div class="card">No bets available.</div>`; return; }
-
-  (data || []).forEach(row=>{
+const {data}=await client.from("value_bets_feed").select("*").order("value_pct",{ascending:false,nullsFirst:false}).order("created_at",{ascending:false});
+betsGrid.innerHTML="";
+const betsTable=document.getElementById('betsTable');
+const betsTbody=betsTable ? betsTable.querySelector('tbody') : null;
+if(betsTbody) betsTbody.innerHTML = "";
+const active=(data||[]).filter(isValueBetActiveToday);
+if(!active.length){ betsGrid.innerHTML = `<div class="card">No bets for today.</div>`; return; }
+ (active || []).forEach(row=>{
   const key = makeBetKey(row);
   const isAdded = addedKeys.has(key);
 betsGrid.innerHTML+=`
@@ -360,26 +168,26 @@ betsGrid.innerHTML+=`
     <button class="bet-btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
   </div>
 </div>`;
-});
 
-  if(!session){
-    const pay = document.createElement("div");
-    pay.className = "card paywall-card";
-    pay.innerHTML = `
-      <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
-        <div>
-          <div style="font-weight:800;font-size:18px;margin-bottom:4px;">Unlock the full list</div>
-          <div style="opacity:.85;">You’re viewing the first <b>${Math.min(10,(data||[]).length)}</b> bets for today. Log in to see all bets.</div>
-        </div>
-        <button class="pill-btn" id="openLoginFromPaywall">Log in / Sign up</button>
-      </div>
+  // Desktop table row (shown via CSS in WIDE mode on large screens)
+  if(betsTbody){
+    const betDate = row.bet_date || (row.created_at ? new Date(row.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) : '');
+    const val = (row.value_pct ?? row.value_percent ?? row.value_percentage ?? row.value);
+    const valTxt = val != null ? Number(val).toFixed(1)+'%' : '—';
+    betsTbody.innerHTML += `
+      <tr>
+        <td><b>${escapeHtml(row.match||'')}</b></td>
+        <td>${escapeHtml(row.market||'')}</td>
+        <td><span class="pill">${escapeHtml(String(row.odds??''))}</span></td>
+        <td><span class="pill">${escapeHtml(valTxt)}</span></td>
+        <td>${escapeHtml(betDate)}</td>
+        <td>
+          <button class="btn ${isAdded ? 'added' : ''}" ${isAdded ? 'disabled' : ''} onclick='addToTracker(this, ${JSON.stringify(row)})'>${isAdded ? 'Added' : 'Add'}</button>
+        </td>
+      </tr>
     `;
-    betsGrid.appendChild(pay);
-    const btn = pay.querySelector("#openLoginFromPaywall");
-    btn?.addEventListener("click", ()=>{
-      openAuthModal();
-    });
   }
+});
 }
 
 
@@ -397,7 +205,7 @@ async function addToTracker(btn, row){
     match: row.match,
     market: row.market,
     odds: row.odds,
-    stake: 10,
+        stake: 10,
     result: "pending"
   };
 
@@ -410,8 +218,10 @@ async function addToTracker(btn, row){
     console.error("Insert failed:", error);
     if(btn){
       btn.disabled = false;
-      btn.textContent = 'Add';
+      btn.textContent = "Add";
     }
+    // Quick visible feedback (mobile)
+    try{ alert("Could not add bet. Check tracker table columns / RLS."); }catch(e){}
     return;
   }
 
@@ -630,7 +440,7 @@ function renderHistory(){
   const rows = Array.isArray(trackerRowsCache) ? trackerRowsCache : [];
   const groups = {};
   for(const b of rows){
-    const dayKey = (b.created_at || "").slice(0,10);
+    const dayKey = dayKeyFromRow(b);
     if(!dayKey) continue;
     (groups[dayKey] ||= []).push(b);
   }
@@ -638,7 +448,7 @@ function renderHistory(){
   const dayKeys = Object.keys(groups).sort((a,b)=> b.localeCompare(a));
   historySummaryEl.innerHTML = "";
 
-  window.__historyOpen = window.__historyOpen || {};
+  window.__historyOpen = window.__historyOpen || JSON.parse(localStorage.getItem('history_open')||'{}');
 
   const fmtDay = (dayKey)=>{
     const d = new Date(dayKey + "T00:00:00");
@@ -675,6 +485,7 @@ function renderHistory(){
 
     const settled = won + lost;
     const ratio = `${won}/${settled || 0}`;
+    const winrate = settled ? Math.round((won / settled) * 100) : 0;
 
     const collapsed = !window.__historyOpen[dayKey];
 
@@ -682,19 +493,22 @@ function renderHistory(){
       <div class="history-day ${collapsed ? "collapsed" : ""}" id="history-day-${dayKey}">
         <button class="monthly-toggle daily-toggle history-toggle" data-day="${dayKey}">
           <div class="daily-toggle-left">📅 <span>${fmtDay(dayKey)}</span></div>
+
+          <div class="daily-toggle-center">
+            <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
+            <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
+            <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
+          </div>
+
           <div class="daily-toggle-right">
-            <span class="history-day-ratio">${ratio}</span>
+            <div class="history-ratio-wrap">
+              <span class="history-day-ratio">${ratio}</span>
+              <span class="history-winrate ${winrate>=70 ? "wr-hot" : winrate>=55 ? "wr-good" : winrate>=40 ? "wr-mid" : "wr-bad"}">${winrate>=70 ? "🔥 " : ""}Winrate ${winrate}%</span>
+            </div>
             <span class="daily-chevron">${collapsed ? "▼" : "▲"}</span>
           </div>
         </button>
-
-        <div class="history-day-chips day-stats">
-          <div class="history-chip won">✅ <span>Won</span> <strong>${won}</strong></div>
-          <div class="history-chip lost">❌ <span>Lost</span> <strong>${lost}</strong></div>
-          <div class="history-chip pending">⏳ <span>Pending</span> <strong>${pending}</strong></div>
-        </div>
-
-        <div class="history-day-bets">
+          <div class="history-day-bets">
           <div class="history-table-wrap">
             <table class="history-table">
               <thead>
@@ -783,6 +597,10 @@ const {data}=await client.from("bet_tracker").select("*").order("created_at",{as
 const rows = data || [];
 trackerRowsCache = rows;
 trackerAllRows = rows;
+
+// Keep Value Bets \"Added\" state synced with tracker rows
+addedKeys.clear();
+rows.forEach(r => addedKeys.add(makeBetKey(r)));
 wireTrackerFilters();
 
 let start=parseFloat(document.getElementById("startingBankroll").value);
@@ -1246,126 +1064,5 @@ if(startingInput){
   // Save on change
   startingInput.addEventListener("input", function(){
     localStorage.setItem("starting_bankroll", this.value);
-  });
-}
-
-
-
-// ===== Auth Modal Handlers =====
-const authEmail = document.getElementById("authEmail");
-const authPassword = document.getElementById("authPassword");
-const btnLogin = document.getElementById("btnLogin");
-const btnSignup = document.getElementById("btnSignup");
-const btnMagic = document.getElementById("btnMagic");
-const btnLogout = document.getElementById("btnLogout");
-const authMsg = document.getElementById("authMsg");
-
-function setAuthMsg(msg){
-  if(authMsg) authMsg.textContent = msg || "";
-}
-
-async function ensureProfileRow(user){
-  if(!user) return;
-  // create profile row if missing (safe upsert)
-  await client.from("profiles").upsert({
-    id: user.id,
-    email: user.email || null
-  }, { onConflict: "id" });
-}
-
-async function doLogin(){
-  const email = (authEmail?.value || "").trim();
-  const password = (authPassword?.value || "").trim();
-  if(!email || !password){ setAuthMsg("Enter email and password."); return; }
-  if(btnLogin) btnLogin.disabled = true;
-  setAuthMsg("Logging in…");
-  try{
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if(error) throw error;
-    await ensureProfileRow(data?.user);
-    setAuthMsg("");
-    closeAuthModal();
-    await refreshGateUI();
-    try{ await loadBets(); }catch(e){}
-    if(isSubscriber){
-      try{ await loadTracker(); }catch(e){}
-      try{ await loadHistory(); }catch(e){}
-    }
-  }catch(e){
-    setAuthMsg(e?.message || "Login failed.");
-  }finally{
-    if(btnLogin) btnLogin.disabled = false;
-  }
-}
-
-async function doSignup(){
-  const email = (authEmail?.value || "").trim();
-  const password = (authPassword?.value || "").trim();
-  if(!email || !password){ setAuthMsg("Enter email and password."); return; }
-  if(btnSignup) btnSignup.disabled = true;
-  setAuthMsg("Creating account…");
-  try{
-    const { data, error } = await client.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin }
-    });
-    if(error) throw error;
-    await ensureProfileRow(data?.user);
-    // With email confirm ON, session is usually null:
-    setAuthMsg("Check your email to confirm your account, then log in.");
-  }catch(e){
-    setAuthMsg(e?.message || "Sign up failed.");
-  }finally{
-    if(btnSignup) btnSignup.disabled = false;
-  }
-}
-
-async function doMagic(){
-  const email = (authEmail?.value || "").trim();
-  if(!email){ setAuthMsg("Enter your email first."); return; }
-  if(btnMagic) btnMagic.disabled = true;
-  setAuthMsg("Sending magic link…");
-  try{
-    const { error } = await client.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin }
-    });
-    if(error) throw error;
-    setAuthMsg("Check your email for the login link.");
-  }catch(e){
-    setAuthMsg(e?.message || "Could not send magic link.");
-  }finally{
-    if(btnMagic) btnMagic.disabled = false;
-  }
-}
-
-async function doLogout(){
-  setAuthMsg("Logging out…");
-  try{ await client.auth.signOut(); }catch(e){}
-  setAuthMsg("");
-  await refreshGateUI();
-}
-
-if(btnLogin) btnLogin.addEventListener("click", doLogin);
-if(btnSignup) btnSignup.addEventListener("click", doSignup);
-if(btnMagic) btnMagic.addEventListener("click", doMagic);
-if(btnLogout) btnLogout.addEventListener("click", doLogout);
-
-client.auth.onAuthStateChange(async ()=>{
-  await refreshGateUI();
-});
-
-// init
-window.addEventListener("load", async ()=>{
-  await refreshGateUI();
-  wireTabLocks();
-});
-// ===== End Auth Modal Handlers =====
-
-// PWA / offline support
-if('serviceWorker' in navigator){
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('/sw.js').catch(()=>{});
   });
 }
